@@ -840,6 +840,7 @@ html, body {
 .pace-btn:hover {
   background: linear-gradient(145deg, #243447 0%, #1a2334 100%);
   box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  border: 1px solid #8b5cf6;
 }
 
 .pace-btn.active {
@@ -866,7 +867,10 @@ html, body {
 
 .pit-btn {
   width: 100%;
-  padding: 0.45rem;
+  padding: 0 0.45rem;
+  height: 28px;
+  line-height: 28px;
+  box-sizing: border-box;
   background: linear-gradient(145deg, var(--team-color) 0%, color-mix(in srgb, var(--team-color) 70%, black) 100%);
   color: white;
   border: 1px solid rgba(255,255,255,0.1);
@@ -895,21 +899,27 @@ html, body {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
   gap: 0.25rem;
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .pit-option {
-  padding: 0.45rem;
-  border: none;
-  border-radius: 0.225rem;
+  padding: 0.15rem;
+  height: 100%;
+  border: 1px solid rgba(255,255,255,0.05);
+  border-radius: 6px;
   color: white;
   cursor: pointer;
   font-size: 0.525rem;
   font-weight: 800;
-  transition: opacity 0.2s;
+  transition: all 0.2s;
+  background: linear-gradient(145deg, #1e293b 0%, #161e2d 100%);
 }
 
 .pit-option:hover {
-  opacity: 0.8;
+  background: linear-gradient(145deg, #243447 0%, #1a2334 100%);
+  box-shadow: 0 3px 6px rgba(0,0,0,0.3);
+  border: 1px solid #8b5cf6;
 }
 
 .pit-option.hard {
@@ -934,11 +944,18 @@ html, body {
   display: flex;
   gap: 0.5rem;
   align-items: center;
+  height: 28px;
+  box-sizing: border-box;
 }
 
 .box-called {
   flex: 1;
-  padding: 0.45rem;
+  padding: 0 0.45rem;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
   background-color: #1e293b;
   border-radius: 0.225rem;
   font-size: 0.525rem;
@@ -975,4 +992,11 @@ html, body {
   box-shadow: 0 2px 4px rgba(0,0,0,0.2);
   min-width: 300px;
   max-width: 80%;
+}
+
+
+
+/* Fix for grid layout in team responses */
+.team-responses-container .response-content {
+  white-space: normal;
 }

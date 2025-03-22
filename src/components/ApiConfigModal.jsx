@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { getAvailableModels } from '../data/modelConfig';
 import {Box,Button,Dialog,DialogActions,DialogContent,DialogTitle,FormControl,InputLabel,MenuItem,Select,TextField,Typography,Grid,Divider,IconButton,Tooltip,CircularProgress,
   Switch, FormControlLabel
 } from '@mui/material';
@@ -19,8 +20,8 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
       availableTeams.map(team => [
         team,
         {
-          provider: 'openai',
-          model: 'gpt-4o-mini',
+          provider: 'openrouter',
+          model: 'google/gemini-2.0-flash-lite-001',
           color: teamColors[team]
         }
       ])
@@ -44,7 +45,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
 
   const handleProviderChange = (team, provider) => {
     // When changing provider, set the default model for that provider
-    const defaultModel = provider === 'openai' ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-001';
+    const defaultModel = provider === 'openai' ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-lite-001';
     
     setLocalConfig(prev => ({
       ...prev,
@@ -90,7 +91,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
     const isFreeTier = provider === 'openrouter' && 
                        Object.values(localConfig).some(team => 
                          team.provider === 'openrouter' && 
-                         team.model === 'google/gemini-2.0-flash-lite-001-free');
+                         team.model === 'google/gemini-2.0-flash-lite-001');
     
     if (!apiKey && !isFreeTier) {
       setTestResult({ 
@@ -127,7 +128,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
             "Content-Type": "application/json"
           };
           body = JSON.stringify({
-            model: "google/gemini-2.0-flash-lite-001-free",
+            model: "google/gemini-2.0-flash-lite-001",
             messages: [
               { role: "system", content: "You are a helpful assistant." },
               { role: "user", content: "Say 'API connection successful' if you can read this." }
@@ -185,32 +186,6 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
     }
   };
 
-  const getAvailableModels = (provider, useFreeMode) => {
-    if (provider === 'openai') {
-      return [
-        { id: 'gpt-4o', name: 'GPT-4o' },
-        { id: 'gpt-4o-mini', name: 'GPT-4o Mini' },
-        { id: 'gpt-3.5-turbo', name: 'GPT-3.5 Turbo' }
-      ];
-    } else if (provider === 'openrouter') {
-      if (useFreeMode) {
-        return [
-          { id: 'google/gemini-2.0-flash-lite-001-free', name: 'Gemini 2.0 Flash Lite (Free Tier)' }
-        ];
-      } else {
-        return [
-          { id: 'google/gemini-2.0-flash-001', name: 'Gemini 2.0 Flash' },
-          { id: 'google/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite' },
-          { id: 'anthropic/claude-3.5-haiku', name: 'Claude 3.5 Haiku' },
-          { id: 'anthropic/claude-3.5-sonnet', name: 'Claude 3.5 Sonnet' },
-          { id: 'deepseek/deepseek-chat', name: 'DeepSeek V3' },
-          { id: 'meta-llama/llama-3.3-70b-instruct', name: 'Llama 3.3 70B' }
-        ];
-      }
-    }
-    return [];
-  };
-
   const handleFreeModeToggle = (event) => {
     const useFreeMode = event.target.checked;
     
@@ -235,7 +210,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
         updatedConfig[team] = {
           ...updatedConfig[team],
           provider: 'openrouter',
-          model: 'google/gemini-2.0-flash-lite-001-free'
+          model: 'google/gemini-2.0-flash-lite-001'
         };
       });
 

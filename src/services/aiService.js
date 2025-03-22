@@ -4,9 +4,10 @@
 
 import { useState, useEffect } from 'react';
 import { getTireSelectionPrompt } from '../data/tireDecisionPrompt';
-import { TIRE_TYPES } from '../data/constants';
+import { TIRE_TYPES, PITSTOP_TIME_PENALTY } from '../data/constants';
 import { getTeamPrompt } from '../data/teamPrompts';
 import { teamMapping, teamColors, availableTeams } from '../data/teamMapping';
+import { MODEL_CONFIGS, getAvailableModels } from '../data/modelConfig';
 import { computeScoreboardData } from "../utils/computeScoreboardData";
 
 // ============================================================================
@@ -26,9 +27,10 @@ export function useApiConfig() {
           useFreeMode: parsedConfig.useFreeMode !== undefined ? parsedConfig.useFreeMode : false,
           ...availableTeams.reduce((acc, team) => {
             // Use existing team config if available, otherwise set defaults
+            const freeTierModel = getAvailableModels('openrouter', true)[0];
             acc[team] = parsedConfig[team] || { 
-              provider: 'openai', 
-              model: 'gpt-4o-mini', 
+              provider: 'openrouter', 
+              model: freeTierModel.id, 
               color: teamColors[team] 
             };
             return acc;
@@ -49,7 +51,7 @@ export function useApiConfig() {
       },
       useFreeMode: false,
       ...availableTeams.reduce((acc, team) => {
-        acc[team] = { provider: 'openai', model: 'gpt-4o-mini', color: teamColors[team] };
+        acc[team] = { provider: 'openrouter', model: Object.keys(MODEL_CONFIGS)[0], color: teamColors[team] };
         return acc;
       }, {})
     };
@@ -119,7 +121,9 @@ export const useTeamApi = ({
             interval: car.interval,
             status: car.status || "Racing",
             tireHistory: car.tireHistory,
-            pathLength
+            currentSpeed: car.currentSpeed, 
+            pathLength,
+            pitProjection: car.pitProjection
           }))
         };
 
@@ -211,7 +215,7 @@ const driverTeamMapping = createDriverTeamMapping();
  * @returns {boolean} - True if using Free Tier
  */
 const isFreeTierModel = (model) => {
-  return model === 'google/gemini-2.0-flash-lite-001-free';
+  return model === Object.keys(MODEL_CONFIGS).find(key => key.endsWith('-free'));
 };
 
 /**
@@ -465,7 +469,19 @@ export async function sendTeamQuery({
         const normalizedDistance = ((car.distanceTraveled % pathLength) + pathLength) % pathLength;
         const progressFraction = normalizedDistance / pathLength;
         const lapsRemaining = totalLaps - (car.laps + progressFraction) + 1;
-        return { driver, position: car.position, text: `P${car.position} ${driver} ${lapsRemaining.toFixed(2)} laps remaining` };
+        
+        // Format pit stop projection information
+        let pitProjectionText = "";
+        if (car.pitProjection) {
+          const { projectedPosition, projectedGap, carAhead } = car.pitProjection;
+          pitProjectionText = ` Pit projection: P${projectedPosition} (${PITSTOP_TIME_PENALTY}s loss)${carAhead ? ` | After stop: ${projectedGap.toFixed(1)}s behind ${carAhead}` : ''}`;
+        }
+        
+        return { 
+          driver, 
+          position: car.position, 
+          text: `P${car.position} ${driver} [${lapsRemaining.toFixed(2)} laps left]${pitProjectionText}` 
+        };
       }
       return { driver, position: 999, text: `P- ${driver} ? laps remaining` };
     })

@@ -121,7 +121,7 @@ const App = () => {
     if (e && e.preventDefault) e.preventDefault();
     
     const inputCommand = (typeof cmdString === "string") ? cmdString : "";
-    console.log("Processing command:", inputCommand);
+    //console.log("Processing command:", inputCommand);
     
     // Split into individual commands by semicolon
     const commands = inputCommand
@@ -432,10 +432,16 @@ const App = () => {
               pathLength={pathLength}
               paused={paused}
               setPaused={setPaused}
-              setIsModalOpen={setIsModalOpen}
+              setIsModalOpen={(isOpen) => {
+                setIsModalOpen(isOpen);
+                if (!isOpen) {
+                  setSelectedNotification(null);
+                }
+              }}
               notifications={notifications}
               setSelectedNotification={setSelectedNotification}
               setNotificationPause={setNotificationPause}
+              wasPaused={paused}
               availableTeams={availableTeams}
               selectedNotification={selectedNotification}
               teamColors={teamColors}

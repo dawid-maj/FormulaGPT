@@ -24,7 +24,7 @@ export default async function handler(req) {
     }
 
     // Check if the model is the free tier model
-    if (requestData.model !== 'google/gemini-2.0-flash-lite-001-free') {
+    if (requestData.model !== 'google/gemini-2.0-flash-lite-001') {
       return new Response(
         JSON.stringify({ error: { message: 'Invalid model: only free tier model is supported' } }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }

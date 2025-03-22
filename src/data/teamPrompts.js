@@ -1,5 +1,6 @@
 import { TIRE_TYPES, MAX_LAPS, TIRE_DEGRADATION, DRIVING_STYLES, FOLLOWING_PENALTY, PITLANE_LENGTH, PITLANE_SPEED, PITSTOP_TIME_PENALTY, trackPoints } from './constants';
 import { teamMapping } from './teamMapping';
+import { getRaceDetailsSnippet, getLongTermStrategySnippet, getPitStopPenaltySnippet } from './sharedPrompts';
 
 const computePathLength = (points) => {
   let length = 0;
@@ -31,6 +32,11 @@ export const getTeamPrompt = (team, pathLength) => {
     .map(([t, d]) => `${t}: ${d.join(", ")}`)
     .join("\n");
   
+  // Get shared race details snippet
+  const raceDetails = getRaceDetailsSnippet(actualPathLength);
+  const longTermStrategy = getLongTermStrategySnippet();
+  const pitStopPenalty = getPitStopPenaltySnippet();
+  
   return `
 
 You are the manager of the ${team} team in a simulated Formula 1 race. Your task is to strategically manage the race and make pit stop decisions for your drivers (e.g. ${drivers.join(" and ")}). Every lap you will receive a complete update on the race status – including information on the current lap, race time, driver positions, tire conditions, speeds, statuses (e.g. "Racing", "Box Called", "Pit Entry", "Pit Exit"), and tire history.
@@ -61,25 +67,7 @@ You can combine multiple commands in one line using semicolons, for example:
     
 Each driving style lasts for 30 seconds before automatically reverting to NORMAL.
 
-Race Details:
-- Track length: ${actualPathLength} px.
-- Number of laps: ${MAX_LAPS}
-- Pit stop lane: ${PITLANE_LENGTH} px long (${PITLANE_LENGTH/2} px before and ${PITLANE_LENGTH/2} px after the finish line). When a driver enters the pit lane, their speed is limited to ${PITLANE_SPEED} px/s.
-- Mandatory Pit Stop Rules:
-  * Each driver must make at least one pit stop during the race
-  * Each driver must use at least two different tire compounds during the race, under penalty of disqualification.
-- Tires and Speed:
-  - Soft tires (S): base speed ${TIRE_TYPES.SOFT.speed} px/s  
-  - Medium tires (M): base speed ${TIRE_TYPES.MEDIUM.speed} px/s  
-  - Hard tires (H): base speed ${TIRE_TYPES.HARD.speed} px/s
-- Tire degradation per second:
-  - Soft tires: ${TIRE_DEGRADATION.SOFT}%
-  - Medium tires: ${TIRE_DEGRADATION.MEDIUM}%
-  - Hard tires: ${TIRE_DEGRADATION.HARD}%
-- Effective speed is calculated as:
-  effective speed = base speed - (base speed * (100 - tire condition)) / 200
-- Overtaking: If a driver is directly behind another, their speed is further reduced by ${FOLLOWING_PENALTY} px/s.
-- Note: In the race update table, if the gap value is followed by an exclamation mark (e.g. "0.62s !"), it indicates that the driver is blocked by another car (i.e. their speed is affected by the following penalty).
+${raceDetails}
 
 Other Competitors:
 ${otherCompetitors}
@@ -88,9 +76,10 @@ Hints:
 * Analyze tire degradation trends, gap times, and speeds to decide the optimal moment for a pit stop.
 * Consider that pitting one lap early might allow you to undercut competitors using fresher tires.
 Example: If your driver's tire condition is dropping below 80% and the gap to the rival is minimal (e.g., <1 sec), a pit stop for a tire change might yield a faster lap, even accounting for pit lane time loss.
-* Weigh the time lost in the pit lane against potential speed gains from fresher tires. A pit stop costs you approximately ${PITSTOP_TIME_PENALTY} seconds compared to drivers who do not pit.
+${pitStopPenalty}
 * Customize your strategy for each driver based on their current race position and tire history.
 * The push driving style is effective for quickly overtaking slower opponents (due to more degraded tires or running on a harder compound) but increases tire wear. Overusing push may force your drivers into more frequent pit stops.
+${longTermStrategy}
 * When calling your drivers for a pit stop, it is advisable to also instruct them to push so they maximize their pace just before entering the pit lane.
 
 IMPORTANT: Before making any decision, it's best to go through a long. thorough chain of thoughts to weigh all the factors carefully.

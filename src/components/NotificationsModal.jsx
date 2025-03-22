@@ -1,5 +1,10 @@
 import React from 'react';
 import { teamColors } from '../data/teamMapping';
+import { getModelDisplayName } from '../data/modelConfig';
+
+const formatBoldText = (text) => {
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+};
 
 export const NotificationsModal = ({ 
   isOpen, 
@@ -13,25 +18,9 @@ export const NotificationsModal = ({
   if (!isOpen) return null;
 
   // Helper function to get model display name
-  const getModelDisplayName = (notification) => {
+  const getNotificationModelName = (notification) => {
     if (!notification || !notification.model) return '';
-    
-    // For OpenAI models
-    if (notification.model === 'gpt-4o') return 'GPT-4o';
-    if (notification.model === 'gpt-4o-mini') return 'GPT-4o Mini';
-    if (notification.model === 'gpt-3.5-turbo') return 'GPT-3.5 Turbo';
-    
-    // For OpenRouter models
-    if (notification.model === 'google/gemini-2.0-flash-001') return 'Gemini 2.0 Flash';
-    if (notification.model === 'google/gemini-2.0-flash-lite-001') return 'Gemini 2.0 Flash Lite';
-    if (notification.model === 'google/gemini-2.0-flash-lite-001-free') return 'Gemini 2.0 Flash Lite (Free)';
-    if (notification.model === 'anthropic/claude-3.5-haiku') return 'Claude 3.5 Haiku';
-    if (notification.model === 'anthropic/claude-3.5-sonnet') return 'Claude 3.5 Sonnet';
-    if (notification.model === 'deepseek/deepseek-chat') return 'DeepSeek V3';
-    if (notification.model === 'meta-llama/llama-3.3-70b-instruct') return 'Llama 3.3 70B';
-    
-    // If it's a known model ID but not in our mapping, just return the model ID
-    return notification.model;
+    return getModelDisplayName(notification.model);
   };
 
   return (
@@ -69,8 +58,8 @@ export const NotificationsModal = ({
           display: 'flex',
           justifyContent: 'space-between',
           alignItems: 'center',
-          padding: '0.05rem 0.75rem',
-          minHeight: '1.2rem',
+          padding: '0.75rem 1rem',
+          minHeight: '3rem',
           borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
           background: selectedNotification ? 
             `linear-gradient(145deg, ${teamColors[selectedNotification.team]} 0%, ${teamColors[selectedNotification.team]}dd 100%)` :
@@ -99,13 +88,13 @@ export const NotificationsModal = ({
             )}
             <h2 style={{ 
               color: '#ffffff',
-              fontSize: '0.875rem',
+              fontSize: '1.125rem',
               fontWeight: '600',
-              textTransform: 'uppercase',
-              letterSpacing: '0.5px',
+              margin: 0,
               display: 'flex',
               flexDirection: 'column',
               alignItems: 'flex-start',
+              fontFamily: 'Titillium Web, sans-serif'
             }}>
               <div>{selectedNotification ? selectedNotification.team : "Team Messages"}</div>
               {selectedNotification && (
@@ -115,7 +104,7 @@ export const NotificationsModal = ({
                   fontWeight: 'normal',
                   textTransform: 'none'
                 }}>
-                  {getModelDisplayName(selectedNotification)}
+                  {getNotificationModelName(selectedNotification)}
                 </div>
               )}
             </h2>
@@ -152,6 +141,18 @@ export const NotificationsModal = ({
                       }
                     }}
                     className="nav-arrow left"
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={e => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
                   >
                     ←
                   </button>
@@ -160,7 +161,8 @@ export const NotificationsModal = ({
                     justifyContent: 'center', 
                     alignItems: 'center', 
                     gap: '0.5rem',
-                    padding: '0.1rem 0'
+                    padding: '0.1rem 0',
+                    fontFamily: 'Titillium Web, sans-serif'
                   }}>
                     {(() => {
                       const teamMessages = notifications.filter(n => n.team === selectedNotification.team);
@@ -186,15 +188,37 @@ export const NotificationsModal = ({
                       }
                     }}
                     className="nav-arrow right"
+                    style={{
+                      background: 'none',
+                      border: '1px solid rgba(255, 255, 255, 0.2)',
+                      borderRadius: '4px',
+                      color: '#fff',
+                      cursor: 'pointer',
+                      padding: '0.25rem 0.75rem',
+                      fontSize: '1rem',
+                      transition: 'all 0.2s'
+                    }}
+                    onMouseOver={e => e.target.style.backgroundColor = 'rgba(255, 255, 255, 0.1)'}
+                    onMouseOut={e => e.target.style.backgroundColor = 'transparent'}
                   >
                     →
                   </button>
                 </div>
                 <div className="notification-content" style={{
-                  fontSize: '0.8rem',
-                  lineHeight: '1.4'
+                  fontSize: '0.9rem',
+                  lineHeight: '1.5',
+                  padding: '1rem',
+                  margin: '0.5rem 0rem',
+                  borderRadius: '8px',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  border: '1px solid rgba(255, 255, 255, 0.1)',
+                  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                  fontFamily: 'Titillium Web, sans-serif'
                 }}>
-                  {selectedNotification.content}
+                  <div 
+                    style={{ whiteSpace: 'pre-wrap', margin: 0, textAlign: 'left' }}
+                    dangerouslySetInnerHTML={{ __html: formatBoldText(selectedNotification.content) }}
+                  />
                 </div>
               </div>
             </div>
@@ -211,7 +235,8 @@ export const NotificationsModal = ({
                     border: '1px solid rgba(255, 255, 255, 0.1)',
                     cursor: 'pointer',
                     transition: 'all 0.2s',
-                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)'
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+                    fontFamily: 'Titillium Web, sans-serif'
                   }}
                   onClick={() => onNotificationClick(notification)}
                   onMouseOver={e => {
@@ -242,7 +267,7 @@ export const NotificationsModal = ({
                           color: 'rgba(255, 255, 255, 0.6)',
                           fontSize: '0.7rem'
                         }}>
-                          {getModelDisplayName(notification)}
+                          {getNotificationModelName(notification)}
                         </span>
                       )}
                     </div>
@@ -258,9 +283,24 @@ export const NotificationsModal = ({
                     color: '#d1d5db',
                     fontSize: '0.875rem',
                     lineHeight: '1.4',
-                    
                   }}>
-                    {notification.content.substring(0, 180)}...
+                    <div 
+                      className="notification-preview"
+                      style={{ 
+                        whiteSpace: 'pre-wrap', 
+                        margin: 0, 
+                        textAlign: 'left',
+                        display: '-webkit-box',
+                        WebkitLineClamp: 2,
+                        WebkitBoxOrient: 'vertical',
+                        overflow: 'hidden',
+                        lineHeight: '1.4em',
+                        maxHeight: '2.8em' // 2 lines * 1.4em line-height
+                      }}
+                      dangerouslySetInnerHTML={{ 
+                        __html: formatBoldText(notification.content.replace(/\n/g, ' ') + '...') 
+                      }}
+                    />
                   </div>
                 </div>
               ))}

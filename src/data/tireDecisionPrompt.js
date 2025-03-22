@@ -1,8 +1,15 @@
 import { TIRE_TYPES } from './constants';
 import { teamMapping } from './teamMapping';
+import { getRaceDetailsSnippet, getLongTermStrategySnippet } from './sharedPrompts';
+import { defaultPathLength } from './teamPrompts';
 
-export const getTireSelectionPrompt = (team, startingPositions) => {
+export const getTireSelectionPrompt = (team, startingPositions, pathLength) => {
   const drivers = teamMapping[team] || [];
+  const actualPathLength = typeof pathLength === 'number' ? pathLength : defaultPathLength;
+  
+  // Get shared race details snippet
+  const raceDetails = getRaceDetailsSnippet(actualPathLength);
+  const longTermStrategy = getLongTermStrategySnippet();
   
   // Create a sorted list of all drivers by position
   const allDriversWithPositions = Object.entries(startingPositions)
@@ -53,6 +60,8 @@ Tire Compounds Overview:
 - Medium Tires (M): Offer a balance between performance and durability.
 - Hard Tires (H): Deliver lower grip but superior durability, beneficial for longer stints.
 
+${raceDetails}
+
 **Considerations for Your Decision:**
 1. **Starting Position Strategy:**  
    - A driver starting at the front may benefit from a compound that maximizes early performance (e.g., Soft or Medium).
@@ -66,7 +75,7 @@ Tire Compounds Overview:
    - Aggressive compounds (Soft) can help secure or maintain a leading position but may force an earlier pit stop due to rapid degradation.
    - Conservative compounds (Hard) might reduce early pace but can provide an advantage by lasting longer in the opening laps.
 
-After analyzing these factors, provide your final decision using the specified command format.
+${longTermStrategy}
 
 *** FINAL REMINDER ***
 Your decisions at this stage are crucial for setting up a strong race strategy. Ensure that the tire choices maximize your drivers' performance at the start while aligning with long-term race plans.

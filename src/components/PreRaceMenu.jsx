@@ -1,4 +1,5 @@
 import React, { useState, useCallback } from 'react';
+import { getModelDisplayName } from '../data/modelConfig';
 import { TIRE_TYPES } from '../data/constants';
 import { teamColors } from '../data/teamMapping';
 import softTiresSvg from '../assets/svg/soft_tires.svg';
@@ -15,6 +16,11 @@ import {
   Check as CheckIcon,
   Api as ApiIcon
 } from '@mui/icons-material';
+
+// Helper function to format bold text
+const formatBoldText = (text) => {
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+};
 
 const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCars, onStartRace, onGenerateAIStrategy, conversationHistory, onOpenApiConfig, apiError, setApiError }) => {
   const [loading, setLoading] = useState(false);
@@ -90,12 +96,16 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
     return cars.every(car => car.tires.type && car.tires.type.trim() !== "");
   };
 
-  // Randomizes tires only for cars without assigned tires.
+  // Randomizes tires only for player-controlled teams without assigned tires
   const randomizeTires = () => {
     const tireTypes = ['SOFT', 'MEDIUM', 'HARD'];
     setCars(prevCars =>
       prevCars.map(car => {
-        // Jeśli już są przypisane opony, pomijamy randomizację
+        // Skip if team is AI-controlled
+        if (teamControl[car.team]?.type !== "player") {
+          return car;
+        }
+        // Skip if tires are already assigned
         if (car.tires && car.tires.type && car.tires.type.trim() !== "") {
           return car;
         }
@@ -114,33 +124,11 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
   };
 
   // Helper function to get model display name
-  const getModelDisplayName = (team) => {
+  const getTeamModelDisplayName = (team) => {
     if (!teamControl[team]) return '';
     
-    
-    
-    // If model is explicitly set in teamControl, use it
-    if (teamControl[team].model) {
-      // For OpenAI models
-      if (teamControl[team].model === 'gpt-4o') return 'GPT-4o';
-      if (teamControl[team].model === 'gpt-4o-mini') return 'GPT-4o Mini';
-      if (teamControl[team].model === 'gpt-3.5-turbo') return 'GPT-3.5 Turbo';
-      
-      // For OpenRouter models
-      if (teamControl[team].model === 'google/gemini-2.0-flash-001') return 'Gemini 2.0 Flash';
-      if (teamControl[team].model === 'google/gemini-2.0-flash-lite-001') return 'Gemini 2.0 Flash Lite';
-      if (teamControl[team].model === 'google/gemini-2.0-flash-lite-001-free') return 'Gemini 2.0 Flash Lite (Free)';
-      if (teamControl[team].model === 'anthropic/claude-3.5-haiku') return 'Claude 3.5 Haiku';
-      if (teamControl[team].model === 'anthropic/claude-3.5-sonnet') return 'Claude 3.5 Sonnet';
-      if (teamControl[team].model === 'deepseek/deepseek-chat') return 'DeepSeek V3';
-      if (teamControl[team].model === 'meta-llama/llama-3.3-70b-instruct') return 'Llama 3.3 70B';
-      
-      // If it's a known model ID but not in our mapping, just return the model ID
-      return teamControl[team].model;
-    }
-    
-    // Fallback to provider-based defaults
-    return teamControl[team].provider === 'openai' ? 'GPT-4o Mini' : 'Gemini 2.0 Flash Lite';
+    // Use the centralized model display name function
+    return getModelDisplayName(teamControl[team].model);
   };
 
   return (
@@ -259,7 +247,7 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                         opacity: 0.8,
                         fontWeight: 'normal'
                       }}>
-                        {getModelDisplayName(strategyModal.team)}
+                        {getTeamModelDisplayName(strategyModal.team)}
                       </div>
                     </h2>
                   </div>
@@ -283,7 +271,9 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                       <div style={{ 
                         fontSize: '0.9rem',
                         lineHeight: '1.5'
-                      }}>{msg.content}</div>
+                      }}
+                      dangerouslySetInnerHTML={{ __html: formatBoldText(msg.content) }}
+                      />
                     </div>
                   ))}
                 </div>
@@ -335,6 +325,7 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                   {team} – {teamControl[team].type === "player" ? "Player" : "AI"}
                 </label>
                 {teamControl[team].type === "ai" && 
+                 teamControl[team].model &&
                  teamControl[team].aiStrategyApplied && 
                  conversationHistory[team] && 
                  conversationHistory[team].length > 0 && (

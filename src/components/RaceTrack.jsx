@@ -65,7 +65,6 @@ export const RaceTrack = ({
             className="race-nav-item clickable"
             onClick={() => {
               const wasNotPaused = !paused;
-              setPaused(true);
               setNotificationPause(wasNotPaused);
               setIsModalOpen(true);
               const teamNotifications = notifications.filter(n => n.team === team);

@@ -1,19 +1,19 @@
 // Team driver mappings - edit team names and drivers here to update them across the application
 export const teamMapping = {
-  "DeepSeek Racing": ["SAI", "ALB"],
-  "Scuderia Gemini": ["LEC", "HAM"],
-  "Llama Motosport": ["RUS", "ANT"],
-  "Papaya Claude": ["NOR", "PIA"],
-  "Emerald GPTo": ["ALO", "STR"]
+  "Britania Racing": ["SAI", "ALB"],
+  "Scuderia Rosa": ["LEC", "HAM"],
+  "Silver Spears": ["RUS", "ANT"],
+  "Papaya Team": ["NOR", "PIA"],
+  "Emerald Racing": ["ALO", "STR"]
 };
 
 // Team colors for UI
 export const teamColors = {
-  "DeepSeek Racing": "#00a0de",
-  "Scuderia Gemini": "#F70D1A",
-  "Llama Motosport": "#787d80",
-  "Papaya Claude": "#FF8000",
-  "Emerald GPTo": "#229971"
+  "Britania Racing": "#00a0de",
+  "Scuderia Rosa": "#F70D1A",
+  "Silver Spears": "#787d80",
+  "Papaya Team": "#FF8000",
+  "Emerald Racing": "#229971"
 };
 
 // List of all available teams

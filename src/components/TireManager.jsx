@@ -1,8 +1,41 @@
 import React, { useState, memo } from 'react';
+import PropTypes from 'prop-types';
 import { teamColors } from '../data/teamMapping';
 import softTiresSvg from '../assets/svg/soft_tires.svg';
 import mediumTiresSvg from '../assets/svg/medium_tires.svg';
 import hardTiresSvg from '../assets/svg/hard_tires.svg';
+import unknownTiresSvg from '../assets/svg/unknown_tires.svg';
+
+// Stałe style dla przycisków pit-option
+const pitOptionStyle = {
+  display: 'flex',
+  alignItems: 'center',
+  justifyContent: 'center',
+  padding: '2px',
+  backgroundColor: '#1e293b',
+  borderRadius: '6px',
+  border: '1px solid rgba(255,255,255,0.05)',
+  boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
+  transition: 'all 0.2s'
+};
+
+// Komponent przycisku pit-option
+const PitOptionButton = ({ onClick, disabled, children }) => (
+  <button 
+    className="pit-option"
+    onClick={onClick}
+    disabled={disabled}
+    style={pitOptionStyle}
+  >
+    {children}
+  </button>
+);
+
+PitOptionButton.propTypes = {
+  onClick: PropTypes.func.isRequired,
+  disabled: PropTypes.bool,
+  children: PropTypes.node.isRequired
+};
 
 const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, position = '2nd', cars, activeStyle, isEditable, highlightedDriver, setHighlightedDriver, hideLockOverlay = false }) => {
   const formatPosition = (pos) => {
@@ -13,13 +46,12 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
   };
   const teamColor = teamColors[team];
   const [showPitOptions, setShowPitOptions] = useState(false);
-  const getTireColor = (tire) => {
-    switch(tire.toLowerCase()) {
-      case 'soft': return '#FF1801';
-      case 'medium': return '#FFF200';
-      case 'hard': return '#FFFFFF';
-      default: return '#FFFFFF';
-    }
+  // Mapowanie typów opon do kolorów i obrazów
+  const tireMapping = {
+    'S': { color: '#FF1801', image: softTiresSvg },
+    'M': { color: '#FFF200', image: mediumTiresSvg },
+    'H': { color: '#FFFFFF', image: hardTiresSvg },
+    '?': { color: '#666666', image: unknownTiresSvg }
   };
 
   // Find car status and scheduled pit stop once to avoid repeated lookups
@@ -51,11 +83,7 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
         <div className="tire-indicator">
           <div className="tire-status-group">
             <img 
-              src={
-                currentTire === 'S' ? softTiresSvg :
-                currentTire === 'M' ? mediumTiresSvg :
-                hardTiresSvg
-              }
+              src={tireMapping[currentTire]?.image || hardTiresSvg}
               alt={`${currentTire} tires`}
               className="tire-letter"
               style={{ width: '24px', height: '24px' }}
@@ -116,12 +144,17 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
           {carStatus === 'Box Called' ? (
             <div className="pit-status">
               <div className="box-called">
-                Box Called: <span style={{ 
-                  color: scheduledPitStop === 'SOFT' ? '#FF1801' :
-                         scheduledPitStop === 'MEDIUM' ? '#FFF200' : '#FFFFFF'
-                }}>
-                  {scheduledPitStop?.charAt(0)}
-                </span>
+                Box Called: 
+                <img 
+                  src={
+                    scheduledPitStop === 'SOFT' ? softTiresSvg :
+                    scheduledPitStop === 'MEDIUM' ? mediumTiresSvg :
+                    scheduledPitStop === 'HARD' ? hardTiresSvg : 
+                    unknownTiresSvg
+                  }
+                  alt={`${scheduledPitStop} tires`}
+                  style={{ width: '20px', height: '20px', marginLeft: '4px', verticalAlign: 'middle' }}
+                />
               </div>
               <button 
                 className="pit-option cancel"
@@ -141,48 +174,41 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
             </button>
           ) : (
             <div className="pit-options">
-              <button 
-                className="pit-option hard"
-                onClick={() => {
-                  if (isEditable) {
-                    onCommand(`${driver.toLowerCase()} pit hard`);
-                    setShowPitOptions(false);
-                  }
-                }}
-                disabled={!isEditable}
-              >
-                H
-              </button>
-              <button 
-                className="pit-option medium"
-                onClick={() => {
-                  if (isEditable) {
-                    onCommand(`${driver.toLowerCase()} pit medium`);
-                    setShowPitOptions(false);
-                  }
-                }}
-                disabled={!isEditable}
-              >
-                M
-              </button>
-              <button 
-                className="pit-option soft"
-                onClick={() => {
-                  if (isEditable) {
-                    onCommand(`${driver.toLowerCase()} pit soft`);
-                    setShowPitOptions(false);
-                  }
-                }}
-                disabled={!isEditable}
-              >
-                S
-              </button>
-              <button 
-                className="pit-option cancel"
+              {/* Przyciski wyboru opon */}
+              {[
+                { type: 'hard', image: hardTiresSvg, alt: 'Hard tires' },
+                { type: 'medium', image: mediumTiresSvg, alt: 'Medium tires' },
+                { type: 'soft', image: softTiresSvg, alt: 'Soft tires' }
+              ].map(tire => (
+                <PitOptionButton
+                  key={tire.type}
+                  onClick={() => {
+                    if (isEditable) {
+                      onCommand(`${driver.toLowerCase()} pit ${tire.type}`);
+                      setShowPitOptions(false);
+                    }
+                  }}
+                  disabled={!isEditable}
+                >
+                  <img 
+                    src={tire.image}
+                    alt={tire.alt}
+                    style={{ width: '20spx', height: '20px' }}
+                  />
+                </PitOptionButton>
+              ))}
+              
+              {/* Przycisk zamknięcia */}
+              <PitOptionButton 
                 onClick={() => setShowPitOptions(false)}
+                style={{
+                  ...pitOptionStyle,
+                  fontSize: '0.7rem',
+                  fontWeight: 'bold'
+                }}
               >
                 X
-              </button>
+              </PitOptionButton>
             </div>
           )}
         </div>
@@ -208,8 +234,6 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
     </div>
   );
 };
-
-import PropTypes from 'prop-types';
 
 TireManager.propTypes = {
   team: PropTypes.string.isRequired,
