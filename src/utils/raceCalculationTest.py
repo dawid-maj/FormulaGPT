@@ -20,9 +20,9 @@ def travel_time(laps: int, tire_type: str, driving_style: str):
 
     # Definicje stylów jazdy
     DRIVING_STYLES = {
-        "PUSH": {"speedModifier": 2, "wearModifier": 0.15},
+        "PUSH": {"speedModifier": 2, "wearModifier": 0.12},
         "NORMAL": {"speedModifier": 0.0, "wearModifier": 0.0},
-        "CONSERVE": {"speedModifier": -1, "wearModifier": -0.05}
+        "CONSERVE": {"speedModifier": -1.2, "wearModifier": -0.04}
     }
 
     lap_distance = 1300
@@ -64,7 +64,7 @@ def travel_time(laps: int, tire_type: str, driving_style: str):
     return time_elapsed, max(0, tire_condition)
 
 if __name__ == "__main__":
-    laps = 3
+    laps = 5
     tires = ["SOFT", "MEDIUM", "HARD"]
     styles = ["PUSH", "NORMAL", "CONSERVE"]
 

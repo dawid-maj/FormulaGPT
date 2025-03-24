@@ -63,15 +63,15 @@ export const TIRE_TYPES = {
 export const DRIVING_STYLES = {
   PUSH: {
     speedModifier: 2,     // Increased speed by 2 units
-    wearModifier: 0.15    // Increased tire wear by 0.15 units/sec
+    wearModifier: 0.12    // Increased tire wear by 0.12 units/sec
   },
   NORMAL: {
     speedModifier: 0,     // No speed modification
     wearModifier: 0       // No wear modification
   },
   CONSERVE: {
-    speedModifier: -1,    // Reduced speed by 1 unit
-    wearModifier: -0.05   // Reduced tire wear by 0.05 units/sec
+    speedModifier: -1.2,    // Reduced speed by 1.2 unit
+    wearModifier: -0.04   // Reduced tire wear by 0.04 units/sec
   }
 };
 
