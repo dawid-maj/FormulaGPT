@@ -16,19 +16,15 @@ export const MODEL_CONFIGS = {
     provider: 'openrouter',
     isFreeTier: true
   },
+
+
+  // OpenRouter paid models
   'deepseek/deepseek-chat': {
     name: 'DeepSeek V3 (Free Tier)',
     provider: 'openrouter',
-    isFreeTier: true
   },
-
-  // OpenRouter paid models
   'deepseek/deepseek-r1': {
     name: 'DeepSeek R1',
-    provider: 'openrouter'
-  },
-  'qwen/qwen2.5-32b-instruct': {
-    name: 'Qwen2.5 32B',
     provider: 'openrouter'
   },
   'anthropic/claude-3.5-haiku': {

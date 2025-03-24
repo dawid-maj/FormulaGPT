@@ -27,7 +27,6 @@ export default async function handler(req) {
       'google/gemini-2.0-flash-001',
       'openai/gpt-4o-mini',
       'meta-llama/llama-3.3-70b-instruct',
-      'deepseek/deepseek-chat'
     ];
 
     if (!allowedModels.includes(requestData.model)) {
