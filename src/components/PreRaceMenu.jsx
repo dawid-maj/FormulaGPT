@@ -681,7 +681,7 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                           />
                           {(!selectedCar.tires.type || selectedCar.tires.type === '') && (
                             <span style={{
-                              color: '#ff6b6b',
+                              color: '#ffffff',
                               fontSize: '0.7rem',
                               fontWeight: 'bold'
                             }}>
