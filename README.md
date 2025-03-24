@@ -302,7 +302,7 @@ All AI-related logic is centralized in the [`services/aiService.js`](./src/servi
 ### Configuration
 In the **API Configuration** panel, you can specify:
 - **Keys** for OpenAI/OpenRouter if you want to use a paid model.
-- **Free Mode**: If enabled, no key is needed and all AI calls go to “Gemini 2.0 Flash Lite” (a free-tier model included with the project).  
+- **Free Mode**: If enabled, no key is needed and all AI calls go to free-tier models.  
 - **Model Selection**: On a per-team basis, you may choose any supported model from the drop-down.  
 
 All changes are persisted locally (via `localStorage`) so you don’t need to reconfigure them each time the app is launched.
