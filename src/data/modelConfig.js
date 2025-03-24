@@ -1,12 +1,54 @@
 // Model configuration for the application
 export const MODEL_CONFIGS = {
-
+  // Free tier models (OpenRouter)
   'google/gemini-2.0-flash-001': {
-    name: 'Gemini 2.0 Flash',
+    name: 'Gemini 2.0 Flash (Free Tier)',
+    provider: 'openrouter',
+    isFreeTier: true
+  },
+  'openai/gpt-4o-mini': {
+    name: 'GPT-4o Mini (Free Tier)',
+    provider: 'openrouter',
+    isFreeTier: true
+  },
+  'meta-llama/llama-3.3-70b-instruct': {
+    name: 'Llama 3.3 70B (Free Tier)',
+    provider: 'openrouter',
+    isFreeTier: true
+  },
+  'deepseek/deepseek-chat': {
+    name: 'DeepSeek V3 (Free Tier)',
+    provider: 'openrouter',
+    isFreeTier: true
+  },
+
+  // OpenRouter paid models
+  'deepseek/deepseek-r1': {
+    name: 'DeepSeek R1',
     provider: 'openrouter'
   },
-  
-  // OpenAI Models 
+  'qwen/qwen2.5-32b-instruct': {
+    name: 'Qwen2.5 32B',
+    provider: 'openrouter'
+  },
+  'anthropic/claude-3.5-haiku': {
+    name: 'Claude 3.5 Haiku',
+    provider: 'openrouter'
+  },
+  'anthropic/claude-3.5-sonnet': {
+    name: 'Claude 3.5 Sonnet', 
+    provider: 'openrouter'
+  },
+  'openai/gpt-4o-2024-11-20': {
+    name: 'GPT-4o 2024',
+    provider: 'openrouter'
+  },
+  'openai/o3-mini': {
+    name: 'O3 Mini',
+    provider: 'openrouter'
+  },
+
+  // OpenAI paid models
   'gpt-4o': {
     name: 'GPT-4o',
     provider: 'openai'
@@ -15,37 +57,9 @@ export const MODEL_CONFIGS = {
     name: 'GPT-4o Mini',
     provider: 'openai'
   },
-  'google/gemini-2.0-flash-lite-001': {
-    name: 'Gemini 2.0 Flash Lite (Free Tier)',
-    provider: 'openrouter'
-  },
-  'google/gemini-2.0-flash-thinking-exp:free': {
-    name: 'Gemini 2.0 Flash Thinking exp',
-    provider: 'openrouter'
-  },
-  'anthropic/claude-3.5-haiku': {
-    name: 'Claude 3.5 Haiku',
-    provider: 'openrouter'
-  },
-  'anthropic/claude-3.5-sonnet': {
-    name: 'Claude 3.5 Sonnet',
-    provider: 'openrouter'
-  },
-  'deepseek/deepseek-chat': {
-    name: 'DeepSeek V3',
-    provider: 'openrouter'
-  },
-  'deepseek/deepseek-r1': {
-    name: 'DeepSeek R1',
-    provider: 'openrouter'
-  },
-  'deepseek/deepseek-r1-distill-llama-70b': {
-    name: 'DeepSeek R1 distill lama 70B',
-    provider: 'openrouter'
-  },
-  'meta-llama/llama-3.3-70b-instruct': {
-    name: 'Llama 3.3 70B',
-    provider: 'openrouter'
+  'o3-mini': {
+    name: 'O3 Mini',
+    provider: 'openai'
   }
 };
 
@@ -55,9 +69,12 @@ export const getModelDisplayName = (modelId) => {
 
 export const getAvailableModels = (provider, useFreeMode = false) => {
   if (useFreeMode) {
-    return [
-      { id: 'google/gemini-2.0-flash-lite-001', name: 'Gemini 2.0 Flash Lite (Free Tier)' }
-    ];
+    return Object.entries(MODEL_CONFIGS)
+      .filter(([_, config]) => config.isFreeTier)
+      .map(([id, config]) => ({
+        id,
+        name: config.name
+      }));
   }
 
   return Object.entries(MODEL_CONFIGS)

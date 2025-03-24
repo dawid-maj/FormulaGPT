@@ -23,10 +23,16 @@ export default async function handler(req) {
       );
     }
 
-    // Check if the model is the free tier model
-    if (requestData.model !== 'google/gemini-2.0-flash-lite-001') {
+    const allowedModels = [
+      'google/gemini-2.0-flash-001',
+      'openai/gpt-4o-mini',
+      'meta-llama/llama-3.3-70b-instruct',
+      'deepseek/deepseek-chat'
+    ];
+
+    if (!allowedModels.includes(requestData.model)) {
       return new Response(
-        JSON.stringify({ error: { message: 'Invalid model: only free tier model is supported' } }),
+        JSON.stringify({ error: { message: 'Invalid model for free tier' } }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -50,7 +56,7 @@ export default async function handler(req) {
         'X-Title': 'F1 Race Strategy Simulator'
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.0-flash-lite-001', // Use the actual model ID without the -free suffix
+        model: requestData.model,
         messages: requestData.messages,
         max_tokens: requestData.max_tokens || 1024
       })

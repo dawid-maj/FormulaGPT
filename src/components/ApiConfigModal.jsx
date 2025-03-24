@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getAvailableModels } from '../data/modelConfig';
+import { getAvailableModels, MODEL_CONFIGS } from '../data/modelConfig';
 import {Box,Button,Dialog,DialogActions,DialogContent,DialogTitle,FormControl,InputLabel,MenuItem,Select,TextField,Typography,Grid,Divider,IconButton,Tooltip,CircularProgress,
   Switch, FormControlLabel
 } from '@mui/material';
@@ -21,7 +21,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
         team,
         {
           provider: 'openrouter',
-          model: 'google/gemini-2.0-flash-lite-001',
+          model: 'google/gemini-2.0-flash-001',
           color: teamColors[team]
         }
       ])
@@ -45,7 +45,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
 
   const handleProviderChange = (team, provider) => {
     // When changing provider, set the default model for that provider
-    const defaultModel = provider === 'openai' ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-lite-001';
+    const defaultModel = provider === 'openai' ? 'gpt-4o-mini' : 'google/gemini-2.0-flash-001';
     
     setLocalConfig(prev => ({
       ...prev,
@@ -88,10 +88,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
     
     const apiKey = localConfig.apiKeys[provider];
     // Check if we're using Free Tier for OpenRouter
-    const isFreeTier = provider === 'openrouter' && 
-                       Object.values(localConfig).some(team => 
-                         team.provider === 'openrouter' && 
-                         team.model === 'google/gemini-2.0-flash-lite-001');
+    const isFreeTier = localConfig.useFreeMode;
     
     if (!apiKey && !isFreeTier) {
       setTestResult({ 
@@ -123,12 +120,12 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
       } else if (provider === 'openrouter') {
         if (isFreeTier) {
           // Use our backend endpoint for Free Tier
-          apiUrl = "/api/chat";
+          apiUrl = "/api/freeTierModel";
           headers = {
             "Content-Type": "application/json"
           };
           body = JSON.stringify({
-            model: "google/gemini-2.0-flash-lite-001",
+            model: "google/gemini-2.0-flash-001",
             messages: [
               { role: "system", content: "You are a helpful assistant." },
               { role: "user", content: "Say 'API connection successful' if you can read this." }
@@ -205,12 +202,16 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
         useFreeMode
       };
 
-      // Update all teams to use the free model
+      // Update all teams to use free tier models
       availableTeams.forEach(team => {
+        const currentModel = localConfig[team]?.model;
+        const isFreeModel = MODEL_CONFIGS[currentModel]?.isFreeTier;
+
+        // If current model is already free - keep it, otherwise set first available free model
         updatedConfig[team] = {
-          ...updatedConfig[team],
           provider: 'openrouter',
-          model: 'google/gemini-2.0-flash-lite-001'
+          model: isFreeModel ? currentModel : Object.keys(MODEL_CONFIGS).find(model => MODEL_CONFIGS[model].isFreeTier),
+          color: teamColors[team]
         };
       });
 
@@ -228,21 +229,21 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
           if (previousNonFreeConfig[team]) {
             updatedConfig[team] = { ...previousNonFreeConfig[team] };
           } else {
-            // Default to Gemini Flash Lite (non-free) if no previous config
+            // Default to Gemini Flash if no previous config
             updatedConfig[team] = {
               ...updatedConfig[team],
               provider: 'openrouter',
-              model: 'google/gemini-2.0-flash-lite-001'
+              model: 'google/gemini-2.0-flash-001'
             };
           }
         });
       } else {
-        // If no previous config exists, set all to Gemini Flash Lite
+        // If no previous config exists, set all to Gemini Flash
         availableTeams.forEach(team => {
           updatedConfig[team] = {
             ...updatedConfig[team],
             provider: 'openrouter',
-            model: 'google/gemini-2.0-flash-lite-001'
+            model: 'google/gemini-2.0-flash-001'
           };
         });
       }
@@ -313,7 +314,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                   Use Free Mode
                 </Typography>
                 <Typography variant="body2" sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
-                  When enabled, all teams will use Gemini 2.0 Flash Lite (Free Tier) and no API keys are required
+                  When enabled, all teams will use Gemini 2.0 Flash (Free Tier) and no API keys are required
                 </Typography>
               </Box>
             }
@@ -354,6 +355,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                   onChange={(e) => handleApiKeyChange('openai', e.target.value)}
                   variant="outlined"
                   disabled={localConfig.useFreeMode}
+                  helperText={localConfig.useFreeMode ? "Not required in Free Mode" : "Required for non-free models"}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       '& fieldset': {
@@ -371,6 +373,9 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                     },
                     '& .MuiInputBase-input': {
                       color: 'white',
+                    },
+                    '& .MuiFormHelperText-root': {
+                      color: '#4caf50',
                     },
                   }}
                 />
@@ -404,7 +409,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                   onChange={(e) => handleApiKeyChange('openrouter', e.target.value)}
                   variant="outlined"
                   disabled={localConfig.useFreeMode}
-                  helperText={localConfig.useFreeMode ? "Not required in Free Mode" : ""}
+                  helperText={localConfig.useFreeMode ? "Not required in Free Mode" : "Required for non-free models"}
                   sx={{
                     '& .MuiOutlinedInput-root': {
                       '& fieldset': {
@@ -516,7 +521,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                   </Select>
                 </FormControl>
                 
-                <FormControl fullWidth disabled={localConfig.useFreeMode}>
+                <FormControl fullWidth>
                   <InputLabel id={`model-label-${team}`} sx={{ color: 'rgba(255, 255, 255, 0.7)' }}>
                     Model
                   </InputLabel>
@@ -525,6 +530,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                     value={localConfig[team]?.model || ''}
                     onChange={(e) => handleModelChange(team, e.target.value)}
                     label="Model"
+                    disabled={false}
                     sx={{
                       color: 'white',
                       '.MuiOutlinedInput-notchedOutline': {
@@ -551,7 +557,7 @@ const ApiConfigModal = ({ isOpen, onClose, apiConfig, setApiConfig }) => {
                 
                 {localConfig.useFreeMode && (
                   <Typography variant="body2" sx={{ mt: 1, color: '#4caf50' }}>
-                    Using Gemini 2.0 Flash Lite (Free Tier)
+                    Available Free Tier Models
                   </Typography>
                 )}
               </Box>

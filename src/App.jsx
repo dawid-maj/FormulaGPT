@@ -507,7 +507,7 @@ const App = () => {
               border: '1px solid #333'
             }}>
               <h3 style={{ marginTop: 0 }}>Exit to Menu?</h3>
-              <p>Are you sure you want to exit to the main menu? All race progress will be lost.</p>
+              <p>Are you sure you want to exit to the main menu? All race progress will be lost. To start a new race and clear all data (including conversation history with the models), please refresh your browser. </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
                 <button 
                   onClick={() => setShowExitConfirmation(false)}

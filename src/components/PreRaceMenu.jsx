@@ -7,14 +7,16 @@ import mediumTiresSvg from '../assets/svg/medium_tires.svg';
 import hardTiresSvg from '../assets/svg/hard_tires.svg';
 import unknownTiresSvg from '../assets/svg/unknown_tires.svg';
 import fgptLogo from '../assets/logos/fgpt_logo.svg';
-import { Box, Container,Grid,Paper,Typography,Button,Checkbox,FormControlLabel,Select,MenuItem,IconButton,Tooltip,Card,CardContent,Divider,Alert,Snackbar} 
+import { Box, Container,Grid,Paper,Typography,Button,Checkbox,FormControlLabel,Select,MenuItem,IconButton,Tooltip,Card,CardContent,Divider,Alert,Snackbar}
 from '@mui/material';
 import { 
   Casino as CasinoIcon,
   Science as ScienceIcon,
   PlayArrow as PlayArrowIcon,
   Check as CheckIcon,
-  Api as ApiIcon
+  Api as ApiIcon,
+  Info as InfoIcon,
+  GitHub as GitHubIcon
 } from '@mui/icons-material';
 
 // Helper function to format bold text
@@ -22,8 +24,12 @@ const formatBoldText = (text) => {
   return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 };
 
+import { RaceInfoModal } from './RaceInfoModal';
+
 const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCars, onStartRace, onGenerateAIStrategy, conversationHistory, onOpenApiConfig, apiError, setApiError }) => {
+  const [showRaceInfo, setShowRaceInfo] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [strategiesGenerated, setStrategiesGenerated] = useState(false);
   const [strategyModal, setStrategyModal] = useState({ isOpen: false, team: null });
   // Randomizes a unique order based on the complete list of drivers.
   const [startingGrid, setStartingGrid] = useState(
@@ -369,6 +375,22 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                     >
                       API Configuration
                     </Button>
+                    <Button
+                      variant="outlined"
+                      fullWidth
+                      startIcon={<InfoIcon />}
+                      sx={{ 
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        borderColor: 'rgba(255, 255, 255, 0.2)',
+                        '&:hover': {
+                          borderColor: 'rgba(255, 255, 255, 0.5)',
+                          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                        }
+                      }}
+                      onClick={() => setShowRaceInfo(true)}
+                    >
+                      Race Information
+                    </Button>
                     <Button 
                       variant="outlined"
                       startIcon={<CasinoIcon />}
@@ -377,10 +399,15 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                         color: 'rgba(255, 255, 255, 0.9)',
                         borderColor: 'rgba(255, 255, 255, 0.2)',
                         '&:hover': {
-                          borderColor: 'rgba(255, 255, 255, 0.5)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                          borderColor: strategiesGenerated ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.5)',
+                          backgroundColor: strategiesGenerated ? 'transparent' : 'rgba(255, 255, 255, 0.05)'
+                        },
+                        '&.Mui-disabled': {
+                          color: 'rgba(255, 255, 255, 0.3)',
+                          borderColor: 'rgba(255, 255, 255, 0.1)'
                         }
                       }}
+                      disabled={strategiesGenerated || loading}
                       onClick={randomizeGridFair}
                     >
                       Fair Random Grid
@@ -393,10 +420,15 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                         color: 'rgba(255, 255, 255, 0.9)',
                         borderColor: 'rgba(255, 255, 255, 0.2)',
                         '&:hover': {
-                          borderColor: 'rgba(255, 255, 255, 0.5)',
-                          backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                          borderColor: strategiesGenerated ? 'rgba(255, 255, 255, 0.2)' : 'rgba(255, 255, 255, 0.5)',
+                          backgroundColor: strategiesGenerated ? 'transparent' : 'rgba(255, 255, 255, 0.05)'
+                        },
+                        '&.Mui-disabled': {
+                          color: 'rgba(255, 255, 255, 0.3)',
+                          borderColor: 'rgba(255, 255, 255, 0.1)'
                         }
                       }}
+                      disabled={strategiesGenerated || loading}
                       onClick={randomizeTires}
                     >
                       Random Tires
@@ -430,6 +462,7 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                               .filter(([_, control]) => control.type === "ai")
                               .map(([team]) => onGenerateAIStrategy(team, startingGrid))
                           );
+                          setStrategiesGenerated(true);
                         } catch (error) {
                           console.error('Error generating AI strategies:', error);
                         } finally {
@@ -468,8 +501,34 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                       Start Race
                     </Button>
                   </Box>
+
                 </CardContent>
-                <Box sx={{ mt: 2 }}></Box>
+                <Box sx={{ 
+                  mt: 2, 
+                  borderTop: '1px solid rgba(255, 255, 255, 0.1)',
+                  pt: 2,
+                  pb: 1,
+                  display: 'flex',
+                  justifyContent: 'center'
+                }}>
+                  <Button
+                    variant="text"
+                    startIcon={<GitHubIcon />}
+                    href="https://github.com/dawid-maj/FormulaGPT"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ 
+                      color: 'rgba(255, 255, 255, 0.7)',
+                      textTransform: 'none',
+                      '&:hover': {
+                        color: 'rgba(255, 255, 255, 0.9)',
+                        backgroundColor: 'rgba(255, 255, 255, 0.05)'
+                      }
+                    }}
+                  >
+                    View on GitHub
+                  </Button>
+                </Box>
               </Card>
             )}
           </Grid>
@@ -648,6 +707,10 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
         </Grid>
 
       </Paper>
+      <RaceInfoModal 
+        isOpen={showRaceInfo}
+        onClose={() => setShowRaceInfo(false)}
+      />
     </Container>
   );
 };

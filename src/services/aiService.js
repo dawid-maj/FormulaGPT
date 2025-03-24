@@ -215,7 +215,7 @@ const driverTeamMapping = createDriverTeamMapping();
  * @returns {boolean} - True if using Free Tier
  */
 const isFreeTierModel = (model) => {
-  return model === Object.keys(MODEL_CONFIGS).find(key => key.endsWith('-free'));
+  return MODEL_CONFIGS[model]?.isFreeTier || false;
 };
 
 /**
@@ -489,7 +489,7 @@ export async function sendTeamQuery({
     .map(item => item.text)
     .join(';\n');
 
-  const extraReminder = `Remember, you are responsible for the success of ${teamMapping[team].join(" and ")}. Current situation of your drivers:\n${driversSituation}.\nIn your reasoning and decisions, focus on ensuring their success.`;
+  const extraReminder = `Remember, you are responsible for the success of ${teamMapping[team].join(" and ")}. Current situation of your drivers:\n${driversSituation}.\nIn your reasoning and decisions, focus on ensuring their success. Important: The commands listed in the "Actions" section apply immediately to the current lap. Although you may freely discuss and propose strategic plans for upcoming laps, remember that any command you explicitly include in "Actions" will be executed right away, within this lap.`;
   const currentLap = Math.max(...scoreboardVal.map(item => item.laps));
   
   const fullContext = `Race Time: ${raceTimeStr} | Lap: ${currentLap}/${totalLaps}\n\nActual Results:\n${scoreboardText}\n\nLast Events:\n${eventsText}\n\n${isInitial ? 'NOTE: This is the beginning of the race.' : ''}\n${extraReminder}`;
