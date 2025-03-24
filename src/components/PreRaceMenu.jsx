@@ -612,7 +612,8 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                         <div style={{ 
                           position: 'relative',
                           display: 'inline-flex',
-                          alignItems: 'center'
+                          alignItems: 'center',
+                          gap: '0.5rem'
                         }}
                         title="Click to switch tires"
                         onMouseOver={(e) => {
@@ -678,6 +679,15 @@ const PreRaceMenu = ({ availableTeams, teamControl, setTeamControl, cars, setCar
                               filter: 'none'
                             }}
                           />
+                          {(!selectedCar.tires.type || selectedCar.tires.type === '') && (
+                            <span style={{
+                              color: '#ff6b6b',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold'
+                            }}>
+                              Choose starting compound
+                            </span>
+                          )}
                         </div>
                       ) : (
                         <img 
