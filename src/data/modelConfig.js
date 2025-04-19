@@ -38,8 +38,8 @@ export const MODEL_CONFIGS = {
     name: 'GPT-4o 2024',
     provider: 'openrouter'
   },
-  'openai/o3-mini': {
-    name: 'O3 Mini (OpenRouter)', // Distinguish from OpenAI direct version if needed
+  'openai/o4-mini': {
+    name: 'O4 Mini (OpenRouter)', // Distinguish from OpenAI direct version if needed
     provider: 'openrouter'
   },
 
@@ -52,8 +52,8 @@ export const MODEL_CONFIGS = {
     name: 'GPT-4o Mini',
     provider: 'openai'
   },
-  'o3-mini': {
-    name: 'O3 Mini (OpenAI)', // Distinguish from OpenRouter version if needed
+  'o4-mini': {
+    name: 'O4 Mini (OpenAI)', // Distinguish from OpenRouter version if needed
     provider: 'openai'
   }
 };
