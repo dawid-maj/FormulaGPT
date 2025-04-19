@@ -76,16 +76,27 @@ export const getAvailableModels = (provider, useFreeMode = false) => {
       }));
   }
 
-  // Paid mode:
+  // Paid mode: Refactored filter logic for clarity
   return Object.entries(MODEL_CONFIGS)
     .filter(([_, config]) => {
-      // Filter by the selected provider
+      // First, ensure the provider matches the selected provider
       if (config.provider !== provider) {
         return false;
       }
-      // If the provider is OpenRouter, show *all* models associated with OpenRouter.
-      // If the provider is OpenAI, show only models *not* marked as isFreeTier (as those are OpenRouter specific in our setup).
-      return provider === 'openrouter' || config.isFreeTier !== true;
+
+      // If the provider is OpenAI, only include models NOT marked as free tier
+      // (since our free tier models are specifically OpenRouter ones via backend)
+      if (provider === 'openai') {
+        return config.isFreeTier !== true;
+      }
+
+      // If the provider is OpenRouter, include ALL models associated with OpenRouter
+      if (provider === 'openrouter') {
+        return true;
+      }
+
+      // Fallback for any unexpected provider value
+      return false;
     })
     .map(([id, config]) => ({
       id,
