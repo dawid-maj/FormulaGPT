@@ -14,7 +14,7 @@ export default async function handler(req) {
 
     // Get the request body
     const requestData = await req.json();
-    
+
     // Validate the request
     if (!requestData.messages || !Array.isArray(requestData.messages)) {
       return new Response(
@@ -23,15 +23,16 @@ export default async function handler(req) {
       );
     }
 
+    // Updated list of allowed free models
     const allowedModels = [
-      'google/gemini-2.0-flash-001',
-      'openai/gpt-4o-mini',
-      'meta-llama/llama-3.3-70b-instruct',
+      'google/gemini-2.5-flash-preview',
+      'openai/gpt-4.1-mini',
+      'x-ai/grok-3-mini-beta',
     ];
 
-    if (!allowedModels.includes(requestData.model)) {
+    if (!requestData.model || !allowedModels.includes(requestData.model)) {
       return new Response(
-        JSON.stringify({ error: { message: 'Invalid model for free tier' } }),
+        JSON.stringify({ error: { message: `Invalid model for free tier. Allowed models: ${allowedModels.join(', ')}` } }),
         { status: 400, headers: { 'Content-Type': 'application/json' } }
       );
     }
@@ -57,14 +58,14 @@ export default async function handler(req) {
       body: JSON.stringify({
         model: requestData.model,
         messages: requestData.messages,
-        max_tokens: requestData.max_tokens || 1024
+        max_tokens: requestData.max_tokens || 1024 // Keep default max_tokens
       })
     });
 
     if (!openRouterResponse.ok) {
-      const errorData = await openRouterResponse.json();
+      const errorData = await openRouterResponse.json().catch(() => ({ error: { message: 'Unknown error parsing OpenRouter response' } }));
       return new Response(
-        JSON.stringify({ error: { message: `OpenRouter API error: ${errorData.error?.message || 'Unknown error'}` } }),
+        JSON.stringify({ error: { message: `OpenRouter API error (${openRouterResponse.status}): ${errorData.error?.message || 'Unknown error'}` } }),
         { status: openRouterResponse.status, headers: { 'Content-Type': 'application/json' } }
       );
     }
