@@ -58,7 +58,7 @@ export default async function handler(req) {
       body: JSON.stringify({
         model: requestData.model,
         messages: requestData.messages,
-        max_tokens: requestData.max_tokens || 1024 // Keep default max_tokens
+        max_tokens: requestData.max_tokens || 8192 // Keep default max_tokens
       })
     });
 
