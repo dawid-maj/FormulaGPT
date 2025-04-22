@@ -10,6 +10,19 @@ import { teamMapping, teamColors, availableTeams } from '../data/teamMapping';
 import { MODEL_CONFIGS, getAvailableModels } from '../data/modelConfig';
 import { computeScoreboardData } from "../utils/computeScoreboardData";
 
+// ============================================================
+//  GLOBALStimeout helper
+// ============================================================
+
+const API_TIMEOUT_MS = 15000;          // 15s twardy limit naodpowiedź modelu
+
+function fetchWithTimeout(url, options = {}, timeout = API_TIMEOUT_MS) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeout);
+  return fetch(url, { ...options, signal: controller.signal })
+    .finally(() => clearTimeout(id));
+}
+
 // ============================================================================
 // API Configuration Hook
 // ============================================================================
@@ -582,16 +595,7 @@ export async function sendTeamQuery({
 
   try {
     const { url, headers, body } = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
-
-    /*
-    console.log(`API request details for team ${team} race strategy:`, {
-      url: url,
-      provider: teamApiConfig.provider,
-      model: teamApiConfig.model
-    });
-    */
-
-    const response = await fetch(url, { method: "POST", headers, body });
+    const response = await fetchWithTimeout(url, { method: "POST", headers, body });
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
       console.error("API error:", response.status, errorData);
@@ -664,6 +668,25 @@ export async function sendTeamQuery({
     teamLastEventTimeRef.current = { ...teamLastEventTimeRef.current, [team]: raceTimeVal };
   } catch (error) {
     console.error("Error for team", team, ":", error);
-    setApiError(`API communication error: ${error.message}`);
+
+    // ----- timeout / networkfailure fallback -----
+    setNotifications(prev => [{
+      team,
+      content: "**System**: zakłócenia  brak odpowiedzi modelu.",
+      timestamp: Date.now(),
+      raceTime: raceTimeVal,
+      error: true,
+      model: teamApiConfig.model,
+      provider: teamApiConfig.provider
+    }, ...prev]);
+
+    // nothingdla obu kierowców=> wyścigmoże jechać dalej
+    const nothingCmds = teamMapping[team].map(d => `${d.toLowerCase()} nothing`);
+    setAiPendingCommands(prev => [
+      ...prev,
+      ...nothingCmds.map(cmd => ({ team, command: cmd, model: teamApiConfig.model, provider: teamApiConfig.provider }))
+    ]);
+
+    setApiError(`API communication error: ${error.name === "AbortError" ? "timeout" : error.message}`);
   }
 }
