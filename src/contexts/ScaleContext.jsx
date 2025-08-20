@@ -26,10 +26,3 @@ export const ScaleProvider = ({ children, baseWidth = 1400, maxScale = 1 }) => {
   );
 };
 
-export const useScale = () => {
-  const context = useContext(ScaleContext);
-  if (context === undefined) {
-    throw new Error('useScale must be used within a ScaleProvider');
-  }
-  return context;
-};

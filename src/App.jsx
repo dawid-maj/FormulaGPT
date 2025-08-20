@@ -1,8 +1,6 @@
 // Core React imports and custom hooks
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { useRaceAudio } from './hooks/useRaceAudio';
 import { usePendingCommands } from './hooks/usePendingCommands';
-import { useCommandHandler } from './hooks/useCommandHandler';
 import "@fontsource/titillium-web/400.css";
 import "@fontsource/titillium-web/600.css";
 import "@fontsource/titillium-web/700.css";
@@ -29,7 +27,6 @@ const App = () => {
   const [paused, setPaused] = useState(false);
   
   // Team and command management
-  const [copiedTeam, setCopiedTeam] = useState(null);
   const [conversationHistory, setConversationHistory] = useState({});
   const [pendingCommands, setPendingCommands] = useState([]);
   const [aiPendingCommands, setAiPendingCommands] = useState([]); // Queue for AI commands awaiting execution
@@ -79,8 +76,6 @@ const App = () => {
   const teamApiLastLapRef = useRef({});
   const teamLastEventTimeRef = useRef({});
   
-  // Initialize race audio
-  //useRaceAudio(paused, setupComplete);
 
   // Funkcja dodająca nowy event, korzysta z funkcjonalnej aktualizacji stanu
   const addEvent = (type, details) => {
@@ -121,7 +116,6 @@ const App = () => {
     if (e && e.preventDefault) e.preventDefault();
     
     const inputCommand = (typeof cmdString === "string") ? cmdString : "";
-    //console.log("Processing command:", inputCommand);
     
     // Split into individual commands by semicolon
     const commands = inputCommand
@@ -360,7 +354,6 @@ const App = () => {
 
                   setApiError(null);
 
-                  //console.log('Conversation history for initial API query:', conversationHistoryRef.current);
 
                   Promise.all(
                     aiTeams.map(team => sendTeamQuery({

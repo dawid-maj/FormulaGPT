@@ -14,7 +14,7 @@ import { computeScoreboardData } from "../utils/computeScoreboardData";
 //  GLOBALStimeout helper
 // ============================================================
 
-const API_TIMEOUT_MS = 15000;          // 15s twardy limit naodpowiedź modelu
+const API_TIMEOUT_MS = 25000;          // 25s twardy limit naodpowiedź modelu
 
 function fetchWithTimeout(url, options = {}, timeout = API_TIMEOUT_MS) {
   const controller = new AbortController();
@@ -373,7 +373,6 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
     commandsText = commandsText.replace(/\n/g, ' ').replace(/[*_]+/g, '').trim();
 
     const tireMatches = [...commandsText.matchAll(/([a-zA-Z]+)\s+tire\s+(soft|medium|hard)/gi)];
-    //console.log("Tire command matches:", tireMatches);
 
     setCars(prevCars =>
       prevCars.map(car => {
@@ -382,7 +381,6 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
           if (match) {
             const tireAction = match[2].toLowerCase();
             if (['soft', 'medium', 'hard'].includes(tireAction)) {
-              // console.log("Updating tires for", car.name, "to", tireAction);
               const newTireType = TIRE_TYPES[tireAction.toUpperCase()];
               return {
                 ...car,

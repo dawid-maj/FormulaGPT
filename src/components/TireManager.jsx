@@ -193,7 +193,7 @@ const TireManager = ({ team, driver, onCommand, currentTire, tireHealth, positio
                   <img 
                     src={tire.image}
                     alt={tire.alt}
-                    style={{ width: '20spx', height: '20px' }}
+                    style={{ width: '20px', height: '20px' }}
                   />
                 </PitOptionButton>
               ))}
