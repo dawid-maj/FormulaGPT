@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import { useRef, useState, useEffect, useCallback } from 'react';
 import { TIRE_TYPES, MAX_LAPS, PITLANE_LENGTH, PITLANE_SPEED, DRIVING_STYLES, FOLLOWING_PENALTY, DRIVERS } from '../data/constants';
 import { driverTeamMapping } from '../data/teamMapping';
 
@@ -240,7 +240,7 @@ export const useRace = ({
     });
   };
 
-  const updateRace = (timestamp, skipUpdate = false) => {
+  const updateRace = useCallback((timestamp, skipUpdate = false) => {
     if (!lastTimestampRef.current) {
       lastTimestampRef.current = timestamp;
     }
@@ -305,7 +305,7 @@ export const useRace = ({
       setPaused(true);
       addEvent('race', 'Race paused - final classification displayed');
     }
-  };
+  }, [pathLength, addEvent, previousRankingRef, paused, setPaused, setupComplete, teamControl]);
 
   // Animation loop
   useEffect(() => {

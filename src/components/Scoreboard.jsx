@@ -12,7 +12,7 @@
  * @param {Object[]} events - Array of race events
  * @param {Function} onExitToMenu - Function to handle exit to menu button click
  */
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { teamColors } from '../data/teamMapping';
 import { EventsPanel } from './EventsPanel';
 import { computeScoreboardData } from '../utils/computeScoreboardData';
@@ -35,7 +35,7 @@ const columns = [
   { key: 'lastLap', label: 'Last Lap', width: 60 }
 ];
 
-export const Scoreboard = ({ cars, pathLength, currentLap, maxLaps, raceTime, showResults, availableTeams, events, onExitToMenu, highlightedDriver, setHighlightedDriver }) => {
+const Scoreboard = memo(({  cars, pathLength, currentLap, maxLaps, raceTime, showResults, availableTeams, events, onExitToMenu, highlightedDriver, setHighlightedDriver }) => {
   const [scoreboardData, setScoreboardData] = useState([]);
   const carsRef = useRef(cars);
 
@@ -399,4 +399,6 @@ export const Scoreboard = ({ cars, pathLength, currentLap, maxLaps, raceTime, sh
       )}
     </div>
   );
-};
+});
+
+export { Scoreboard };

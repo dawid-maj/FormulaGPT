@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { motion } from "framer-motion";
 import { catmullRom2bezier } from '../utils/catmullRom2bezier';
 import { PITLANE_LENGTH } from '../data/constants';
 import { NotificationsModal } from './NotificationsModal';
 
-export const RaceTrack = ({ 
+const RaceTrack = memo(({ 
   trackPoints, 
   cars, 
   pathRef, 
@@ -330,4 +330,6 @@ export const RaceTrack = ({
       />
     </div>
   );
-};
+});
+
+export { RaceTrack };

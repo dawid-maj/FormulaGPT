@@ -1,7 +1,7 @@
 /**
  * Hook managing race state and related functionality
  */
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 export const useRaceState = () => {
   // Track and race state
@@ -30,7 +30,7 @@ export const useRaceState = () => {
   }, [events]);
 
   // Function to add race events
-  const addEvent = (type, details, raceTime) => {
+  const addEvent = useCallback((type, details, raceTime) => {
     const minutes = Math.floor(raceTime / 60);
     const seconds = Math.floor(raceTime % 60);
     const timestamp = `${minutes}:${seconds.toString().padStart(2, '0')}`;
@@ -47,17 +47,17 @@ export const useRaceState = () => {
       }
       return prevEvents;
     });
-  };
+  }, []);
 
   // Function to handle exit to menu
-  const handleExitToMenu = () => {
+  const handleExitToMenu = useCallback(() => {
     setShowExitConfirmation(false);
     setSetupComplete(false);
     setPaused(true);
     setShowResults(false);
     setEvents([]);
     setRaceFinished(false);
-  };
+  }, []);
 
   return {
     // State
