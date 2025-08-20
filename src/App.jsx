@@ -1,6 +1,9 @@
 // Core React imports and custom hooks
-import React, { useRef, useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { usePendingCommands } from './hooks/usePendingCommands';
+import { useRaceState } from './hooks/useRaceState';
+import { useApiState } from './hooks/useApiState';
+import { useCommandHandler } from './hooks/useCommandHandler';
 import "@fontsource/titillium-web/400.css";
 import "@fontsource/titillium-web/600.css";
 import "@fontsource/titillium-web/700.css";
@@ -8,202 +11,71 @@ import PreRaceMenu from './components/PreRaceMenu';
 import TeamControls from './components/TeamControls';
 import { useRace } from './hooks/useRace';
 import './App.css';
-import { NotificationsModal } from './components/NotificationsModal';
-import { trackPoints, TIRE_TYPES, DRIVERS, MAX_LAPS } from './data/constants';
+import { trackPoints, MAX_LAPS } from './data/constants';
 import { defaultPathLength } from './data/teamPrompts';
 import { RaceTrack } from './components/RaceTrack';
 import { Scoreboard } from './components/Scoreboard';
-import { EventsPanel } from './components/EventsPanel';
-import { teamMapping, teamColors, availableTeams, defaultTeamControl, driverTeamMapping } from './data/teamMapping';
+import { teamColors, availableTeams, defaultTeamControl } from './data/teamMapping';
 import ApiConfigModal from './components/ApiConfigModal';
 import { useApiConfig, useTeamApi, generateAIStrategy, sendTeamQuery } from './services/aiService';
 
 const App = () => {
-
-  // Track and race state
-  const pathRef = useRef(null);
-  const [pathLength, setPathLength] = useState(0);
-  const [showResults, setShowResults] = useState(false);
-  const [paused, setPaused] = useState(false);
+  // Use custom hooks for state management
+  const raceState = useRaceState();
+  const apiState = useApiState();
   
-  // Team and command management
-  const [conversationHistory, setConversationHistory] = useState({});
-  const [pendingCommands, setPendingCommands] = useState([]);
-  const [aiPendingCommands, setAiPendingCommands] = useState([]); // Queue for AI commands awaiting execution
-  
-  // Notification system states
-  const [notifications, setNotifications] = useState([]);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [selectedNotification, setSelectedNotification] = useState(null);
-  const [notificationPause, setNotificationPause] = useState(false);
-  
-  // API interaction states
-  const [apiResponsesPending, setApiResponsesPending] = useState(false);
-  const [lastApiTriggerLap, setLastApiTriggerLap] = useState(0);
-  const [expectedNotificationCount, setExpectedNotificationCount] = useState(null);
-  const [apiQueryStartTime, setApiQueryStartTime] = useState(null);
-  const [isApiConfigModalOpen, setIsApiConfigModalOpen] = useState(false);
-  const [apiError, setApiError] = useState(null);
-
   // API configuration hook
   const [apiConfig, setApiConfig] = useApiConfig();
 
   // Team control configuration (player vs AI)
   const [teamControl, setTeamControl] = useState(defaultTeamControl);
 
-  // Race setup state
-  const [setupComplete, setSetupComplete] = useState(false);
-  
-  // Exit to menu confirmation modal
-  const [showExitConfirmation, setShowExitConfirmation] = useState(false);
-  
-  // Driver highlighting state
-  const [highlightedDriver, setHighlightedDriver] = useState(null);
-
-
-  // Race events and command management
-  const [events, setEvents] = useState([]);  // Race events log
-  const eventsRef = useRef([]);              // Ref for events to avoid stale closures
-  const pendingCommandsRef = useRef(pendingCommands); // Ref for pending commands
-
+  // Update refs when state changes
   useEffect(() => {
-    pendingCommandsRef.current = pendingCommands;
-  }, [pendingCommands]);
-  const raceTimeRef = useRef(0);
-  const conversationHistoryRef = useRef({});
-  const previousRankingRef = useRef([]);
-  const teamApiCooldownRef = useRef({});
-  const teamApiLastLapRef = useRef({});
-  const teamLastEventTimeRef = useRef({});
+    apiState.pendingCommandsRef.current = apiState.pendingCommands;
+  }, [apiState.pendingCommands]);
+  
+  useEffect(() => {
+    apiState.conversationHistoryRef.current = apiState.conversationHistory;
+  }, [apiState.conversationHistory]);
   
 
-  // Funkcja dodająca nowy event, korzysta z funkcjonalnej aktualizacji stanu
-  const addEvent = (type, details) => {
-    const minutes = Math.floor(raceTime / 60);
-    const seconds = Math.floor(raceTime % 60);
-    const timestamp = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-    setEvents(prevEvents => {
-      // Sprawdzamy, czy istnieje event o tym samym type i details
-      const existingEvent = prevEvents.find(event =>
-        event.type === type &&
-        event.details === details
-      );
-      // Jeśli nie ma, to dodajemy
-      if (!existingEvent) {
-        const newEvents = [{ timestamp, time: raceTimeRef.current, type, details }, ...prevEvents].slice(0, 30);
-        return newEvents;
-      }
-      // W przeciwnym razie – nie dodajemy duplikatu
-      return prevEvents;
-    });
-  };
 
   // Hook wyścigu
-  const { raceTime, cars, setCars, raceFinished, setRaceFinished, updateRace, applyStartingGrid } = useRace({
-    pathLength,
-    addEvent,
-    previousRankingRef,
-    paused,
-    setPaused,
-    setupComplete,
+  const { raceTime, cars, setCars, raceFinished, updateRace, applyStartingGrid } = useRace({
+    pathLength: raceState.pathLength,
+    addEvent: (type, details) => raceState.addEvent(type, details, raceTime),
+    previousRankingRef: raceState.previousRankingRef,
+    paused: raceState.paused,
+    setPaused: raceState.setPaused,
+    setupComplete: raceState.setupComplete,
     teamControl,
     initialCars: null
   });
 
-  // Actual command submission function that uses setCars directly
-  // Używamy useCallback, aby funkcja nie była tworzona na nowo przy każdym renderowaniu
-  const handleCommandSubmit = useCallback((e, cmdString, sourceTeam) => {
-    if (e && e.preventDefault) e.preventDefault();
-    
-    const inputCommand = (typeof cmdString === "string") ? cmdString : "";
-    
-    // Split into individual commands by semicolon
-    const commands = inputCommand
-      .replace(/["']/g, "") // remove quotes
-      .toLowerCase()
-      .split(/[;,]/)
-      .filter(cmd => cmd.trim());
-    
-    commands.forEach(cmd => {
-      const [driver, action, param] = cmd.trim().split(" ");
-      
-      // Validate team ownership of driver
-      if (sourceTeam && !teamMapping[sourceTeam].includes(driver.toUpperCase())) {
-        console.warn(`Ignoring command "${cmd}" - driver ${driver} doesn't belong to team ${sourceTeam}`);
-        return;
-      }
-      
-      if (action === "push" || action === "conserve" || action === "normal") {
-        setCars(prevCars => prevCars.map(car => {
-          if (car.name.toLowerCase().startsWith(driver)) {
-            return {
-              ...car,
-              drivingStyle: action,
-              styleUntil: action === "normal" ? null : raceTimeRef.current + 30
-            };
-          }
-          return car;
-        }));
-      } else if (action === "pit" && pathLength > 0) {
-        if (param === "cancel") {
-          setCars(prevCars => prevCars.map(car => {
-            if (car.name.toLowerCase().startsWith(driver) && car.status === "Box Called") {
-              addEvent("pit", `${car.name} pit stop cancelled`);
-              return {
-                ...car,
-                scheduledPitStop: null,
-                status: "Racing",
-                pitCallLap: null
-              };
-            }
-            return car;
-          }));
-        } else if (["soft", "medium", "hard"].includes(param)) {
-          setCars(prevCars => prevCars.map(car => {
-            if (car.name.toLowerCase().startsWith(driver)) {
-              if (car.status === "Pit Entry" || car.status === "Pit Exit") {
-                addEvent("pit", `${car.name} cannot cancel pit stop - already in pit lane`);
-                return car;
-              }
-              const normalizedDistance = ((car.distanceTraveled % pathLength) + pathLength) % pathLength;
-              // If car is just before finish line (≥ pathLength - 100), pit stop happens on next lap
-              const pitCallLap = (normalizedDistance >= pathLength - 100)
-                ? car.laps + 1
-                : car.laps;
-              return {
-                ...car,
-                scheduledPitStop: param.toUpperCase(),
-                status: "Box Called",
-                pitCallLap: pitCallLap,
-              };
-            }
-            return car;
-          }));
-        }
-      }
-    });
-  }, [pathLength, setCars, addEvent, raceTimeRef]);
+  // Command handler hook
+  const { handleCommandSubmit } = useCommandHandler({
+    setCars,
+    pathLength: raceState.pathLength,
+    addEvent: (type, details) => raceState.addEvent(type, details, raceTime),
+    raceTimeRef: raceState.raceTimeRef
+  });
 
-  // Ref do przechowywania stanu samochodów (dla scoreboarda)
-  const carsRef = useRef(cars);
-  useEffect(() => {
-    carsRef.current = cars;
-  }, [cars]);
 
   // Pomiar długości toru (po załadowaniu SVG i rozpoczęciu wyścigu)
   useEffect(() => {
-    if (setupComplete && pathRef.current) {
-      setPathLength(pathRef.current.getTotalLength());
+    if (raceState.setupComplete && raceState.pathRef.current) {
+      raceState.setPathLength(raceState.pathRef.current.getTotalLength());
     }
-  }, [setupComplete]);
+  }, [raceState.setupComplete, raceState.pathRef, raceState.setPathLength]);
 
   // Główna pętla animacji with pause support
   useEffect(() => {
-    if (!setupComplete || pathLength <= 0) return;
+    if (!raceState.setupComplete || raceState.pathLength <= 0) return;
     
     let animationId;
     const animate = (timestamp) => {
-      if (paused) {
+      if (raceState.paused) {
         updateRace(timestamp, true);
       } else {
         updateRace(timestamp);
@@ -217,19 +89,19 @@ const App = () => {
         cancelAnimationFrame(animationId);
       }
     };
-  }, [setupComplete, pathLength, updateRace, paused]);
+  }, [raceState.setupComplete, raceState.pathLength, updateRace, raceState.paused]);
 
 
 
   // Aktualizacja refów przy zmianie stanów
   useEffect(() => {
-    raceTimeRef.current = raceTime;
-  }, [raceTime]);
+    raceState.raceTimeRef.current = raceTime;
+  }, [raceTime, raceState.raceTimeRef]);
 
   // Dodanie ostrzeżenia przed zamknięciem/odświeżeniem strony podczas wyścigu
   useEffect(() => {
     const handleBeforeUnload = (e) => {
-      if (setupComplete && !showResults) {
+      if (raceState.setupComplete && !raceState.showResults) {
         e.preventDefault();
         e.returnValue = 'Czy na pewno chcesz opuścić wyścig? Postęp zostanie utracony.';
         return e.returnValue;
@@ -238,83 +110,66 @@ const App = () => {
 
     window.addEventListener('beforeunload', handleBeforeUnload);
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-  }, [setupComplete, showResults]);
+  }, [raceState.setupComplete, raceState.showResults]);
 
 
 
-  useEffect(() => {
-    eventsRef.current = events;
-  }, [events]);
-
-  useEffect(() => {
-    conversationHistoryRef.current = conversationHistory;
-  }, [conversationHistory]);
 
   // Show results after delay when race finishes
   useEffect(() => {
     if (raceFinished) {
       const timer = setTimeout(() => {
-        setPaused(true);
-        setShowResults(true);
+        raceState.setPaused(true);
+        raceState.setShowResults(true);
       }, 5000);
       return () => clearTimeout(timer);
     }
-  }, [raceFinished]);
+  }, [raceFinished, raceState]);
 
   usePendingCommands({
-    pendingCommands,
-    setPendingCommands,
-    aiPendingCommands,
-    setAiPendingCommands,
-    paused,
-    setupComplete,
-    pathLength,
+    pendingCommands: apiState.pendingCommands,
+    setPendingCommands: apiState.setPendingCommands,
+    aiPendingCommands: apiState.aiPendingCommands,
+    setAiPendingCommands: apiState.setAiPendingCommands,
+    paused: raceState.paused,
+    setupComplete: raceState.setupComplete,
+    pathLength: raceState.pathLength,
     handleCommandSubmit
   });
 
   useTeamApi({
-    setupComplete,
-    pathLength,
+    setupComplete: raceState.setupComplete,
+    pathLength: raceState.pathLength,
     cars,
-    events,
-    raceTimeRef,
-    conversationHistoryRef,
-    lastApiTriggerLap,
-    setLastApiTriggerLap,
+    events: raceState.events,
+    raceTimeRef: raceState.raceTimeRef,
+    conversationHistoryRef: apiState.conversationHistoryRef,
+    lastApiTriggerLap: apiState.lastApiTriggerLap,
+    setLastApiTriggerLap: apiState.setLastApiTriggerLap,
     availableTeams,
     teamControl,
-    setPaused,
+    setPaused: raceState.setPaused,
     apiConfig,
-    notifications,
-    expectedNotificationCount,
-    setApiResponsesPending,
-    setExpectedNotificationCount,
-    apiQueryStartTime,
-    setApiQueryStartTime,
-    setApiError,
-    setConversationHistory,
-    setNotifications,
-    setAiPendingCommands,
-    teamLastEventTimeRef
+    notifications: apiState.notifications,
+    expectedNotificationCount: apiState.expectedNotificationCount,
+    setApiResponsesPending: apiState.setApiResponsesPending,
+    setExpectedNotificationCount: apiState.setExpectedNotificationCount,
+    apiQueryStartTime: apiState.apiQueryStartTime,
+    setApiQueryStartTime: apiState.setApiQueryStartTime,
+    setApiError: apiState.setApiError,
+    setConversationHistory: apiState.setConversationHistory,
+    setNotifications: apiState.setNotifications,
+    setAiPendingCommands: apiState.setAiPendingCommands,
+    teamLastEventTimeRef: apiState.teamLastEventTimeRef
   });
 
-  // Function to handle exit to menu
-  const handleExitToMenu = () => {
-    setShowExitConfirmation(false);
-    setSetupComplete(false);
-    setPaused(true);
-    setShowResults(false);
-    setEvents([]);
-    setRaceFinished(false);
-    // Reset any other necessary state
-  };
 
 
   return (
     <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <div className="app-container">
         <div className="p-4" style={{ width: '100%', paddingLeft: 0 }}>
-        {!setupComplete ? (
+        {!raceState.setupComplete ? (
           <>
             <PreRaceMenu
               availableTeams={availableTeams}
@@ -323,22 +178,22 @@ const App = () => {
               cars={cars}
               setCars={setCars}
               onGenerateAIStrategy={(team, startingGrid) =>
-                generateAIStrategy(team, startingGrid, apiConfig, setApiError, setCars, setConversationHistory, setTeamControl)
+                generateAIStrategy(team, startingGrid, apiConfig, apiState.setApiError, setCars, apiState.setConversationHistory, setTeamControl)
               }
-              conversationHistory={conversationHistory}
-              onOpenApiConfig={() => setIsApiConfigModalOpen(true)}
-              apiError={apiError}
-              setApiError={setApiError}
+              conversationHistory={apiState.conversationHistory}
+              onOpenApiConfig={() => apiState.setIsApiConfigModalOpen(true)}
+              apiError={apiState.apiError}
+              setApiError={apiState.setApiError}
               onStartRace={(grid) => {
                 applyStartingGrid(grid);
-                setSetupComplete(true);
-                setPaused(true);
+                raceState.setSetupComplete(true);
+                raceState.setPaused(true);
 
                 const aiTeams = availableTeams.filter(team => teamControl[team].type === "ai");
                 if (aiTeams.length > 0) {
-                  setApiResponsesPending(true);
-                  setExpectedNotificationCount(notifications.length + aiTeams.length);
-                  setApiQueryStartTime(Date.now());
+                  apiState.setApiResponsesPending(true);
+                  apiState.setExpectedNotificationCount(apiState.notifications.length + aiTeams.length);
+                  apiState.setApiQueryStartTime(Date.now());
 
                   const scoreboardVal = grid.map((gridItem, index) => ({
                     name: gridItem.name,
@@ -349,10 +204,10 @@ const App = () => {
                     interval: 0,
                     status: "Racing",
                     tireHistory: [gridItem.tires.name],
-                    pathLength
+                    pathLength: raceState.pathLength
                   }));
 
-                  setApiError(null);
+                  apiState.setApiError(null);
 
 
                   Promise.all(
@@ -361,14 +216,14 @@ const App = () => {
                       scoreboardVal,
                       eventsVal: [],
                       raceTimeVal: 0,
-                      conversationHistoryVal: conversationHistoryRef.current,
+                      conversationHistoryVal: apiState.conversationHistoryRef.current,
                       isInitial: true,
                       apiConfig,
-                      setApiError,
-                      setConversationHistory,
-                      setNotifications,
-                      setAiPendingCommands,
-                      teamLastEventTimeRef,
+                      setApiError: apiState.setApiError,
+                      setConversationHistory: apiState.setConversationHistory,
+                      setNotifications: apiState.setNotifications,
+                      setAiPendingCommands: apiState.setAiPendingCommands,
+                      teamLastEventTimeRef: apiState.teamLastEventTimeRef,
                       pathLength: defaultPathLength // Use the computed default path length
                     }))
                   ).catch(error => {
@@ -378,8 +233,8 @@ const App = () => {
               }}
             />
             <ApiConfigModal
-              isOpen={isApiConfigModalOpen}
-              onClose={() => setIsApiConfigModalOpen(false)}
+              isOpen={apiState.isApiConfigModalOpen}
+              onClose={() => apiState.setIsApiConfigModalOpen(false)}
               apiConfig={apiConfig}
               setApiConfig={setApiConfig}
               availableTeams={availableTeams}
@@ -389,7 +244,7 @@ const App = () => {
           <>
         <div className="layout-container">
           <div className="race-nav-bar">
-            {apiError && (
+            {apiState.apiError && (
               <div className="api-error-banner" style={{
                 backgroundColor: '#f44336',
                 color: 'white',
@@ -400,9 +255,9 @@ const App = () => {
                 justifyContent: 'space-between',
                 alignItems: 'center'
               }}>
-                <span>{apiError}</span>
+                <span>{apiState.apiError}</span>
                 <button 
-                  onClick={() => setApiError(null)}
+                  onClick={() => apiState.setApiError(null)}
                   style={{
                     background: 'none',
                     border: 'none',
@@ -421,45 +276,45 @@ const App = () => {
             <RaceTrack
               trackPoints={trackPoints}
               cars={cars}
-              pathRef={pathRef}
-              pathLength={pathLength}
-              paused={paused}
-              setPaused={setPaused}
+              pathRef={raceState.pathRef}
+              pathLength={raceState.pathLength}
+              paused={raceState.paused}
+              setPaused={raceState.setPaused}
               setIsModalOpen={(isOpen) => {
-                setIsModalOpen(isOpen);
+                apiState.setIsModalOpen(isOpen);
                 if (!isOpen) {
-                  setSelectedNotification(null);
+                  apiState.setSelectedNotification(null);
                 }
               }}
-              notifications={notifications}
-              setSelectedNotification={setSelectedNotification}
-              setNotificationPause={setNotificationPause}
-              wasPaused={paused}
+              notifications={apiState.notifications}
+              setSelectedNotification={apiState.setSelectedNotification}
+              setNotificationPause={apiState.setNotificationPause}
+              wasPaused={raceState.paused}
               availableTeams={availableTeams}
-              selectedNotification={selectedNotification}
+              selectedNotification={apiState.selectedNotification}
               teamColors={teamColors}
-              apiResponsesPending={apiResponsesPending}
-              aiPendingCommands={aiPendingCommands} // Przekazujemy informację o oczekujących komendach AI
-              isModalOpen={isModalOpen}
+              apiResponsesPending={apiState.apiResponsesPending}
+              aiPendingCommands={apiState.aiPendingCommands}
+              isModalOpen={apiState.isModalOpen}
               raceTime={raceTime}
-              highlightedDriver={highlightedDriver}
-              setHighlightedDriver={setHighlightedDriver}
+              highlightedDriver={raceState.highlightedDriver}
+              setHighlightedDriver={raceState.setHighlightedDriver}
             />
           </div>
 
           <div className="card p-2">
             <Scoreboard 
               cars={cars}
-              pathLength={pathLength}
+              pathLength={raceState.pathLength}
               currentLap={cars[0]?.laps || 0}
               maxLaps={MAX_LAPS}
               raceTime={raceTime}
-              showResults={showResults}
+              showResults={raceState.showResults}
               availableTeams={availableTeams}
-              events={events}
-              onExitToMenu={() => setShowExitConfirmation(true)}
-              highlightedDriver={highlightedDriver}
-              setHighlightedDriver={setHighlightedDriver}
+              events={raceState.events}
+              onExitToMenu={() => raceState.setShowExitConfirmation(true)}
+              highlightedDriver={raceState.highlightedDriver}
+              setHighlightedDriver={raceState.setHighlightedDriver}
             />
           </div>
         </div>
@@ -470,13 +325,13 @@ const App = () => {
           cars={cars}
           teamControl={teamControl}
           handleCommandSubmit={handleCommandSubmit}
-          paused={paused}
-          highlightedDriver={highlightedDriver}
-          setHighlightedDriver={setHighlightedDriver}
+          paused={raceState.paused}
+          highlightedDriver={raceState.highlightedDriver}
+          setHighlightedDriver={raceState.setHighlightedDriver}
         />
 
         {/* Exit to Menu Confirmation Modal */}
-        {showExitConfirmation && (
+        {raceState.showExitConfirmation && (
           <div className="modal-overlay" style={{
             position: 'fixed',
             top: 0,
@@ -503,7 +358,7 @@ const App = () => {
               <p>Are you sure you want to exit to the main menu? All race progress will be lost. To start a new race and clear all data (including conversation history with the models), please refresh your browser. </p>
               <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
                 <button 
-                  onClick={() => setShowExitConfirmation(false)}
+                  onClick={() => raceState.setShowExitConfirmation(false)}
                   style={{
                     padding: '8px 16px',
                     backgroundColor: '#333',
@@ -516,7 +371,7 @@ const App = () => {
                   Cancel
                 </button>
                 <button 
-                  onClick={handleExitToMenu}
+                  onClick={raceState.handleExitToMenu}
                   style={{
                     padding: '8px 16px',
                     backgroundColor: '#dc2626',
