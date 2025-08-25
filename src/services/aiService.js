@@ -4,24 +4,23 @@
 
 import { useState, useEffect } from 'react';
 import { getTireSelectionPrompt } from '../data/tireDecisionPrompt';
-import { TIRE_TYPES, PITSTOP_TIME_PENALTY } from '../data/constants';
+import { TIRE_TYPES } from '../data/constants';
 import { getTeamPrompt } from '../data/teamPrompts';
 import { teamMapping, teamColors, availableTeams } from '../data/teamMapping';
 import { MODEL_CONFIGS, getAvailableModels } from '../data/modelConfig';
 import { computeScoreboardData } from "../utils/computeScoreboardData";
 
-// ============================================================
-//  GLOBALStimeout helper
-// ============================================================
-
-const API_TIMEOUT_MS = 25000;          // 25s twardy limit naodpowiedź modelu
-
-function fetchWithTimeout(url, options = {}, timeout = API_TIMEOUT_MS) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  return fetch(url, { ...options, signal: controller.signal })
-    .finally(() => clearTimeout(id));
-}
+// API utilities
+import { fetchWithTimeout, prepareApiRequest, sendApiRequest, isFreeTierModel } from './api/apiClient';
+import { parseTireSelectionCommands, parseRaceCommands } from './strategy/commandParser';
+import { 
+  formatRaceTime, 
+  buildScoreboardText, 
+  buildEventsText, 
+  buildDriverSituationText,
+  buildEnhancedPreRaceContext,
+  buildFullContext 
+} from './strategy/messageBuilder';
 
 // ============================================================================
 // API Configuration Hook
@@ -221,64 +220,7 @@ const createDriverTeamMapping = () => {
 // Driver to team mapping
 const driverTeamMapping = createDriverTeamMapping();
 
-/**
- * Determines if a model is using the Free Tier
- * @param {string} model - The model ID
- * @returns {boolean} - True if using Free Tier
- */
-const isFreeTierModel = (model) => {
-  return MODEL_CONFIGS[model]?.isFreeTier || false;
-};
-
-/**
- * Prepares API request configuration based on team settings
- * @param {Object} teamApiConfig - Team API configuration
- * @param {Array} messages - Messages to send
- * @param {Object} apiConfig - Global API configuration
- * @returns {Object} API request configuration
- */
-const prepareApiRequest = (teamApiConfig, messages, apiConfig) => {
-  const usingFreeTier = isFreeTierModel(teamApiConfig.model);
-  
-  if (usingFreeTier) {
-    return {
-      url: "/api/freeTierModel",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: teamApiConfig.model,
-        messages: messages
-      })
-    };
-  } else if (teamApiConfig.provider === 'openai') {
-    return {
-      url: "https://api.openai.com/v1/chat/completions",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiConfig.apiKeys.openai}`
-      },
-      body: JSON.stringify({
-        model: teamApiConfig.model,
-        messages: messages
-      })
-    };
-  } else if (teamApiConfig.provider === 'openrouter') {
-    return {
-      url: "https://openrouter.ai/api/v1/chat/completions",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${apiConfig.apiKeys.openrouter}`,
-        "HTTP-Referer": window.location.href,
-        "X-Title": "F1 Race Strategy Simulator"
-      },
-      body: JSON.stringify({
-        model: teamApiConfig.model,
-        messages: messages
-      })
-    };
-  }
-  
-  throw new Error(`Unsupported provider: ${teamApiConfig.provider}`);
-};
+// These functions are now imported from api/apiClient.js and strategy/ modules
 
 /**
  * Generates initial AI strategy for team's tire selection before race start
@@ -316,40 +258,11 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
   }
 
   try {
-    const { url, headers, body } = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
-    
+    const requestConfig = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
+    const data = await sendApiRequest(requestConfig);
+    const assistantMessage = data.choices[0].message;
 
-    // Send API request to selected provider (OpenAI, OpenRouter, or our backend)
-    const response = await fetch(url, { method: "POST", headers, body });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("API error:", response.status, errorData);
-      setApiError(`API Error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
-      return Promise.reject(new Error(`API error: ${response.status}`));
-    }
-
-    const data = await response.json();
-    
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      setApiError("Invalid API response: missing message in response");
-      return Promise.reject(new Error("Invalid API response"));
-    }
-
-     const assistantMessage = data.choices[0].message;
-
-    let commandsText = assistantMessage.content;
-    const codeBlockMatch = commandsText.match(/```([^`]+)```/);
-    if (codeBlockMatch) {
-      commandsText = codeBlockMatch[1];
-    } else {
-      const actionsIndex = commandsText.toLowerCase().indexOf("actions:");
-      if (actionsIndex !== -1) {
-        commandsText = commandsText.substring(actionsIndex + "actions:".length);
-      }
-    }
-    commandsText = commandsText.replace(/\n/g, ' ').replace(/[*_]+/g, '').trim();
-
-    const tireMatches = [...commandsText.matchAll(/([a-zA-Z]+)\s+tire\s+(soft|medium|hard)/gi)];
+    const tireMatches = parseTireSelectionCommands(assistantMessage.content);
 
     setCars(prevCars =>
       prevCars.map(car => {
@@ -434,53 +347,15 @@ export async function sendTeamQuery({
   pathLength 
 }) {
   const systemMessage = { role: "system", content: getTeamPrompt(team) };
-  const minutes = Math.floor(raceTimeVal / 60);
-  const seconds = Math.floor(raceTimeVal % 60);
-  const raceTimeStr = `${minutes}:${seconds.toString().padStart(2, '0')}`;
-
-  const totalLaps = 12; // Uaktualnij wartość, jeśli liczba okrążeń jest inna
-
-  const scoreboardText = scoreboardVal.map(item => {
-    const normalizedDistance = ((item.distanceTraveled % pathLength) + pathLength) % pathLength;
-    const distPercent = Math.round((normalizedDistance / pathLength) * 100);
-    return `P${item.position}: ${item.name}, tires: ${item.tires.name}, cond: ${Math.round(item.tires.condition)}%, speed: ${item.currentSpeed?.toFixed(1) ?? item.tires.speed}, interval: ${item.position === 1 ? '---' : `+${item.interval.toFixed(2)}`}, laps: ${item.laps}, lap dist: ${distPercent}%, status: ${item.status}, tire history: ${item.tireHistory.join('-')}, last lap: ${item.lastLapTime ? item.lastLapTime.toFixed(2) : '-'}`;
-  }).join('\n');
-
-  const lastSentTime = teamLastEventTimeRef.current[team] || 0;
-  const newEvents = eventsVal.filter(event => event.time >= lastSentTime);
-  const eventsText = newEvents.reverse().map(event => `${event.timestamp} - ${event.details}`).join('\n');
-
-  const driversSituation = teamMapping[team]
-    .map(driver => {
-      const car = scoreboardVal.find(item => item.name.toLowerCase() === driver.toLowerCase());
-      if (car) {
-        const normalizedDistance = ((car.distanceTraveled % pathLength) + pathLength) % pathLength;
-        const progressFraction = normalizedDistance / pathLength;
-        const lapsRemaining = totalLaps - (car.laps + progressFraction) + 1;
-        
-        // Format pit stop projection information
-        let pitProjectionText = "";
-        if (car.pitProjection) {
-          const { projectedPosition, projectedGap, carAhead } = car.pitProjection;
-          pitProjectionText = ` Pit projection: P${projectedPosition} (${PITSTOP_TIME_PENALTY}s loss)${carAhead ? ` | After stop: ${projectedGap.toFixed(1)}s behind ${carAhead}` : ''}`;
-        }
-        
-        return { 
-          driver, 
-          position: car.position, 
-          text: `P${car.position} ${driver} [${lapsRemaining.toFixed(2)} laps left]${pitProjectionText}` 
-        };
-      }
-      return { driver, position: 999, text: `P- ${driver} ? laps remaining` };
-    })
-    .sort((a, b) => a.position - b.position)
-    .map(item => item.text)
-    .join(';\n');
-
-  const extraReminder = `Remember, you are responsible for the success of ${teamMapping[team].join(" and ")}. Current situation of your drivers:\n${driversSituation}.\nIn your reasoning and decisions, focus on ensuring their success. Important: The commands listed in the "Actions" section apply immediately to the current lap. Although you may freely discuss and propose strategic plans for upcoming laps, remember that any command you explicitly include in "Actions" will be executed right away, within this lap.`;
-  const currentLap = Math.max(...scoreboardVal.map(item => item.laps));
+  const raceTimeStr = formatRaceTime(raceTimeVal);
+  const totalLaps = 12; // Update this value if race laps change
   
-  const fullContext = `Race Time: ${raceTimeStr} | Lap: ${currentLap}/${totalLaps}\n\nActual Results:\n${scoreboardText}\n\nLast Events:\n${eventsText}\n\n${isInitial ? 'NOTE: This is the beginning of the race.' : ''}\n${extraReminder}`;
+  const scoreboardText = buildScoreboardText(scoreboardVal, pathLength);
+  const eventsText = buildEventsText(eventsVal, teamLastEventTimeRef.current[team] || 0);
+  const driversSituation = buildDriverSituationText(teamMapping[team], scoreboardVal, pathLength, totalLaps);
+  
+  const currentLap = Math.max(...scoreboardVal.map(item => item.laps));
+  const fullContext = buildFullContext(raceTimeStr, currentLap, totalLaps, scoreboardText, eventsText, isInitial, driversSituation);
 
   const history = conversationHistoryVal[team] || [];
   
@@ -496,35 +371,14 @@ export async function sendTeamQuery({
     const preRaceResponse = filteredHistory.find(msg => msg.role === "assistant");
     
     if (preRaceResponse) {
-      // Create a formatted qualifying list from the scoreboard
-      const qualifyingList = scoreboardVal.map(item => 
-        `P${item.position}: ${item.name} (${driverTeamMapping[item.name] || "Unknown Team"})`
-      ).join('\n');
+      const enhancedPreRaceContext = buildEnhancedPreRaceContext(
+        scoreboardVal, 
+        driverTeamMapping, 
+        teamMapping[team] || [], 
+        preRaceResponse
+      );
       
-      // Extract tire choices from the pre-race response
-      const drivers = teamMapping[team] || [];
-      let driver1Tire = "unknown";
-      let driver2Tire = "unknown";
-      
-      // Try to extract tire choices from the pre-race response
-      const tireMatches = [...preRaceResponse.content.matchAll(/([a-zA-Z]+)\s+tire\s+(soft|medium|hard)/gi)];
-      if (tireMatches.length > 0) {
-        tireMatches.forEach(match => {
-          const driver = match[1].toUpperCase();
-          const tire = match[2].toLowerCase();
-          if (driver === drivers[0]) {
-            driver1Tire = tire;
-          } else if (drivers[1] && driver === drivers[1]) {
-            driver2Tire = tire;
-          }
-        });
-      }
-      
-      // Create enhanced context for the pre-race response
-      const enhancedPreRaceContext = `Alright, before the race, here's a quick recap of yesterday's qualifying session:\n\n${qualifyingList}\n\nJust a reminder, we decided to go with ${driver1Tire} tires for ${drivers[0]}${drivers[1] ? ` and ${driver2Tire} tires for ${drivers[1]}` : ''}. Here's the reasoning you shared with your team yesterday:\n"\n${preRaceResponse.content}"\n###\nThat was your line of thinking. In the next message, you'll receive the starting table, and you'll decide the pace of your drivers for the first lap.`;
-      
-      // Replace the original pre-race response with a user message containing the enhanced context
-      // instead of modifying the assistant message
+      // Replace the original pre-race response with enhanced context
       enhancedHistory = enhancedHistory.filter(msg => msg.role !== "assistant");
       enhancedHistory.push({ role: "user", content: enhancedPreRaceContext });
     }
@@ -555,23 +409,10 @@ export async function sendTeamQuery({
   }
 
   try {
-    const { url, headers, body } = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
-    const response = await fetchWithTimeout(url, { method: "POST", headers, body });
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      console.error("API error:", response.status, errorData);
-      setApiError(`API Error (${response.status}): ${errorData.error?.message || 'Unknown error'}`);
-      return;
-    }
-
-    const data = await response.json();
+    const requestConfig = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
+    const data = await sendApiRequest(requestConfig);
     await new Promise(resolve => setTimeout(resolve, 1000));
     
-    if (!data.choices || !data.choices[0] || !data.choices[0].message) {
-      setApiError("Invalid API response: missing message in response");
-      return;
-    }
-
     const assistantMessage = data.choices[0].message;
 
     // Zapisujemy w historii konwersacji, zawsze z nowym promptem systemowym
@@ -601,20 +442,10 @@ export async function sendTeamQuery({
       provider: teamApiConfig.provider
     }, ...prev]);
 
-    // Extract valid commands from AI response using regex
-    // Matches patterns like: "driver pit soft", "driver push", "driver normal", etc.
-    const commandRegex = /\b(\w+)\s+(pit\s+(soft|medium|hard|cancel)|push|normal|conserve|nothing)\b/gi;
-    let commands = [];
-    let match;
-    while ((match = commandRegex.exec(assistantMessage.content)) !== null) {
-      commands.push(match[0].trim());
-    }
+    // Extract and validate commands from AI response
+    const commands = parseRaceCommands(assistantMessage.content, teamMapping[team]);
 
     if (commands.length > 0) {
-      commands = commands.filter(cmd => {
-        const [driver] = cmd.trim().split(' ');
-        return teamMapping[team].includes(driver.toUpperCase());
-      });
       setAiPendingCommands(prev => [...prev, ...commands.map(cmd => ({ 
         team, 
         command: cmd,
@@ -629,10 +460,10 @@ export async function sendTeamQuery({
   } catch (error) {
     console.error("Error for team", team, ":", error);
 
-    // ----- timeout / networkfailure fallback -----
+    // Timeout/network failure fallback
     setNotifications(prev => [{
       team,
-      content: "**System**: zakłócenia  brak odpowiedzi modelu.",
+      content: "**System**: Communication disruption - no response from model.",
       timestamp: Date.now(),
       raceTime: raceTimeVal,
       error: true,
@@ -640,13 +471,13 @@ export async function sendTeamQuery({
       provider: teamApiConfig.provider
     }, ...prev]);
 
-    // nothingdla obu kierowców=> wyścigmoże jechać dalej
+    // Fallback commands for both drivers to keep race going
     const nothingCmds = teamMapping[team].map(d => `${d.toLowerCase()} nothing`);
     setAiPendingCommands(prev => [
       ...prev,
       ...nothingCmds.map(cmd => ({ team, command: cmd, model: teamApiConfig.model, provider: teamApiConfig.provider }))
     ]);
 
-    setApiError(`API communication error: ${error.name === "AbortError" ? "timeout" : error.message}`);
+    setApiError(`API communication error: ${error.message.includes("timeout") || error.name === "AbortError" ? "timeout" : error.message}`);
   }
 }

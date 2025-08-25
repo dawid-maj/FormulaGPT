@@ -4,20 +4,21 @@ import { usePendingCommands } from './hooks/usePendingCommands';
 import { useRaceState } from './hooks/useRaceState';
 import { useApiState } from './hooks/useApiState';
 import { useCommandHandler } from './hooks/useCommandHandler';
+import { useRace } from './hooks/useRace';
 import "@fontsource/titillium-web/400.css";
 import "@fontsource/titillium-web/600.css";
 import "@fontsource/titillium-web/700.css";
-import PreRaceMenu from './components/PreRaceMenu';
-import TeamControls from './components/TeamControls';
-import { useRace } from './hooks/useRace';
 import './App.css';
-import { trackPoints, MAX_LAPS } from './data/constants';
-import { defaultPathLength } from './data/teamPrompts';
-import { RaceTrack } from './components/RaceTrack';
-import { Scoreboard } from './components/Scoreboard';
+
+// Components
+import PreRaceSetup from './components/PreRaceSetup';
+import RaceInterface from './components/RaceInterface';
+import ExitConfirmationModal from './components/ExitConfirmationModal';
+import ApiErrorBanner from './components/ApiErrorBanner';
+
+// Data and services
 import { teamColors, availableTeams, defaultTeamControl } from './data/teamMapping';
-import ApiConfigModal from './components/ApiConfigModal';
-import { useApiConfig, useTeamApi, generateAIStrategy, sendTeamQuery } from './services/aiService';
+import { useApiConfig, useTeamApi } from './services/aiService';
 
 const App = () => {
   // Use custom hooks for state management
@@ -98,12 +99,12 @@ const App = () => {
     raceState.raceTimeRef.current = raceTime;
   }, [raceTime, raceState.raceTimeRef]);
 
-  // Dodanie ostrzeżenia przed zamknięciem/odświeżeniem strony podczas wyścigu
+  // Add warning before closing/refreshing page during race
   useEffect(() => {
     const handleBeforeUnload = (e) => {
       if (raceState.setupComplete && !raceState.showResults) {
         e.preventDefault();
-        e.returnValue = 'Czy na pewno chcesz opuścić wyścig? Postęp zostanie utracony.';
+        e.returnValue = 'Are you sure you want to leave the race? Progress will be lost.';
         return e.returnValue;
       }
     };
@@ -165,231 +166,91 @@ const App = () => {
 
 
 
+  const handleRaceStart = (grid, apiPromises = []) => {
+    applyStartingGrid(grid);
+    raceState.setSetupComplete(true);
+    raceState.setPaused(true);
+
+    if (apiPromises.length > 0) {
+      apiState.setApiResponsesPending(true);
+      apiState.setExpectedNotificationCount(apiState.notifications.length + apiPromises.length);
+      apiState.setApiQueryStartTime(Date.now());
+      apiState.setApiError(null);
+
+      Promise.all(apiPromises).catch(error => {
+        console.error("Error while sending API requests:", error);
+      });
+    }
+  };
+
   return (
     <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
       <div className="app-container">
         <div className="p-4" style={{ width: '100%', paddingLeft: 0 }}>
-        {!raceState.setupComplete ? (
-          <>
-            <PreRaceMenu
+          {!raceState.setupComplete ? (
+            <PreRaceSetup
               availableTeams={availableTeams}
               teamControl={teamControl}
               setTeamControl={setTeamControl}
               cars={cars}
               setCars={setCars}
-              onGenerateAIStrategy={(team, startingGrid) =>
-                generateAIStrategy(team, startingGrid, apiConfig, apiState.setApiError, setCars, apiState.setConversationHistory, setTeamControl)
-              }
               conversationHistory={apiState.conversationHistory}
-              onOpenApiConfig={() => apiState.setIsApiConfigModalOpen(true)}
-              apiError={apiState.apiError}
-              setApiError={apiState.setApiError}
-              onStartRace={(grid) => {
-                applyStartingGrid(grid);
-                raceState.setSetupComplete(true);
-                raceState.setPaused(true);
-
-                const aiTeams = availableTeams.filter(team => teamControl[team].type === "ai");
-                if (aiTeams.length > 0) {
-                  apiState.setApiResponsesPending(true);
-                  apiState.setExpectedNotificationCount(apiState.notifications.length + aiTeams.length);
-                  apiState.setApiQueryStartTime(Date.now());
-
-                  const scoreboardVal = grid.map((gridItem, index) => ({
-                    name: gridItem.name,
-                    tires: gridItem.tires,
-                    laps: 0,
-                    distanceTraveled: gridItem.distanceTraveled,
-                    position: index + 1,
-                    interval: 0,
-                    status: "Racing",
-                    tireHistory: [gridItem.tires.name],
-                    pathLength: raceState.pathLength
-                  }));
-
-                  apiState.setApiError(null);
-
-
-                  Promise.all(
-                    aiTeams.map(team => sendTeamQuery({
-                      team,
-                      scoreboardVal,
-                      eventsVal: [],
-                      raceTimeVal: 0,
-                      conversationHistoryVal: apiState.conversationHistoryRef.current,
-                      isInitial: true,
-                      apiConfig,
-                      setApiError: apiState.setApiError,
-                      setConversationHistory: apiState.setConversationHistory,
-                      setNotifications: apiState.setNotifications,
-                      setAiPendingCommands: apiState.setAiPendingCommands,
-                      teamLastEventTimeRef: apiState.teamLastEventTimeRef,
-                      pathLength: defaultPathLength // Use the computed default path length
-                    }))
-                  ).catch(error => {
-                    console.error("Error while sending API requests:", error);
-                  });
-                }
-              }}
-            />
-            <ApiConfigModal
-              isOpen={apiState.isApiConfigModalOpen}
-              onClose={() => apiState.setIsApiConfigModalOpen(false)}
+              setConversationHistory={apiState.setConversationHistory}
               apiConfig={apiConfig}
               setApiConfig={setApiConfig}
-              availableTeams={availableTeams}
+              apiError={apiState.apiError}
+              setApiError={apiState.setApiError}
+              isApiConfigModalOpen={apiState.isApiConfigModalOpen}
+              setIsApiConfigModalOpen={apiState.setIsApiConfigModalOpen}
+              setNotifications={apiState.setNotifications}
+              setAiPendingCommands={apiState.setAiPendingCommands}
+              teamLastEventTimeRef={apiState.teamLastEventTimeRef}
+              pathLength={raceState.pathLength}
+              onRaceStart={handleRaceStart}
             />
-          </>
-        ) : (
-          <>
-        <div className="layout-container">
-          <div className="race-nav-bar">
-            {apiState.apiError && (
-              <div className="api-error-banner" style={{
-                backgroundColor: '#f44336',
-                color: 'white',
-                padding: '8px 16px',
-                borderRadius: '4px',
-                marginBottom: '10px',
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center'
-              }}>
-                <span>{apiState.apiError}</span>
-                <button 
-                  onClick={() => apiState.setApiError(null)}
-                  style={{
-                    background: 'none',
-                    border: 'none',
-                    color: 'white',
-                    cursor: 'pointer',
-                    fontSize: '16px',
-                    fontWeight: 'bold'
-                  }}
-                >
-                  ×
-                </button>
+          ) : (
+            <>
+              <div className="race-nav-bar">
+                <ApiErrorBanner 
+                  error={apiState.apiError} 
+                  onDismiss={() => apiState.setApiError(null)}
+                />
               </div>
-            )}
-          </div>
-          <div>
-            <RaceTrack
-              trackPoints={trackPoints}
-              cars={cars}
-              pathRef={raceState.pathRef}
-              pathLength={raceState.pathLength}
-              paused={raceState.paused}
-              setPaused={raceState.setPaused}
-              setIsModalOpen={(isOpen) => {
-                apiState.setIsModalOpen(isOpen);
-                if (!isOpen) {
-                  apiState.setSelectedNotification(null);
-                }
-              }}
-              notifications={apiState.notifications}
-              setSelectedNotification={apiState.setSelectedNotification}
-              setNotificationPause={apiState.setNotificationPause}
-              wasPaused={raceState.paused}
-              availableTeams={availableTeams}
-              selectedNotification={apiState.selectedNotification}
-              teamColors={teamColors}
-              apiResponsesPending={apiState.apiResponsesPending}
-              aiPendingCommands={apiState.aiPendingCommands}
-              isModalOpen={apiState.isModalOpen}
-              raceTime={raceTime}
-              highlightedDriver={raceState.highlightedDriver}
-              setHighlightedDriver={raceState.setHighlightedDriver}
-            />
-          </div>
-
-          <div className="card p-2">
-            <Scoreboard 
-              cars={cars}
-              pathLength={raceState.pathLength}
-              currentLap={cars[0]?.laps || 0}
-              maxLaps={MAX_LAPS}
-              raceTime={raceTime}
-              showResults={raceState.showResults}
-              availableTeams={availableTeams}
-              events={raceState.events}
-              onExitToMenu={() => raceState.setShowExitConfirmation(true)}
-              highlightedDriver={raceState.highlightedDriver}
-              setHighlightedDriver={raceState.setHighlightedDriver}
-            />
-          </div>
+              
+              <RaceInterface
+                cars={cars}
+                raceTime={raceTime}
+                pathRef={raceState.pathRef}
+                pathLength={raceState.pathLength}
+                events={raceState.events}
+                paused={raceState.paused}
+                setPaused={raceState.setPaused}
+                showResults={raceState.showResults}
+                highlightedDriver={raceState.highlightedDriver}
+                setHighlightedDriver={raceState.setHighlightedDriver}
+                handleCommandSubmit={handleCommandSubmit}
+                onExitToMenu={() => raceState.setShowExitConfirmation(true)}
+                apiResponsesPending={apiState.apiResponsesPending}
+                aiPendingCommands={apiState.aiPendingCommands}
+                notifications={apiState.notifications}
+                selectedNotification={apiState.selectedNotification}
+                setSelectedNotification={apiState.setSelectedNotification}
+                isModalOpen={apiState.isModalOpen}
+                setIsModalOpen={apiState.setIsModalOpen}
+                setNotificationPause={apiState.setNotificationPause}
+                availableTeams={availableTeams}
+                teamControl={teamControl}
+                teamColors={teamColors}
+              />
+            </>
+          )}
         </div>
         
-        {/* Zastępujemy bezpośrednie renderowanie TireManager przez zoptymalizowany TeamControls */}
-        <TeamControls
-          availableTeams={availableTeams}
-          cars={cars}
-          teamControl={teamControl}
-          handleCommandSubmit={handleCommandSubmit}
-          paused={raceState.paused}
-          highlightedDriver={raceState.highlightedDriver}
-          setHighlightedDriver={raceState.setHighlightedDriver}
+        <ExitConfirmationModal
+          isOpen={raceState.showExitConfirmation}
+          onCancel={() => raceState.setShowExitConfirmation(false)}
+          onConfirm={raceState.handleExitToMenu}
         />
-
-        {/* Exit to Menu Confirmation Modal */}
-        {raceState.showExitConfirmation && (
-          <div className="modal-overlay" style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(0, 0, 0, 0.7)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            paddingTop: '15%',
-            zIndex: 1000
-          }}>
-            <div className="modal-content" style={{
-              backgroundColor: '#1a1a1a',
-              borderRadius: '8px',
-              padding: '20px',
-              width: '400px',
-              maxWidth: '90%',
-              boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)',
-              border: '1px solid #333'
-            }}>
-              <h3 style={{ marginTop: 0 }}>Exit to Menu?</h3>
-              <p>Are you sure you want to exit to the main menu? All race progress will be lost. To start a new race and clear all data (including conversation history with the models), please refresh your browser. </p>
-              <div style={{ display: 'flex', justifyContent: 'center', gap: '10px', marginTop: '20px' }}>
-                <button 
-                  onClick={() => raceState.setShowExitConfirmation(false)}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#333',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Cancel
-                </button>
-                <button 
-                  onClick={raceState.handleExitToMenu}
-                  style={{
-                    padding: '8px 16px',
-                    backgroundColor: '#dc2626',
-                    color: 'white',
-                    border: 'none',
-                    borderRadius: '4px',
-                    cursor: 'pointer'
-                  }}
-                >
-                  Exit to Menu
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-          </>
-        )}
-        </div>
       </div>
     </div>
   );
