@@ -196,7 +196,6 @@ export const useTeamApi = ({
         setApiResponsesPending(false);
         setExpectedNotificationCount(null);
         setApiQueryStartTime(null);
-        console.log("All responses received - disabling spinner");
       }
     }
   }, [notifications, expectedNotificationCount, apiQueryStartTime, setApiResponsesPending, setExpectedNotificationCount, setApiQueryStartTime]);
@@ -304,22 +303,8 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
   const teamApiConfig = apiConfig[team];
   const usingFreeTier = isFreeTierModel(teamApiConfig.model);
   
-  // Detailed logging of API configuration
-  /*
-  console.log(`Team ${team} API Configuration:`, {
-    provider: teamApiConfig.provider,
-    model: teamApiConfig.model,
-    usingFreeTier: usingFreeTier
-  });
-  */
   
-  // Logowanie pełnej zawartości wysyłanej do API
   const messagesToSend = [{ role: "system", content: prompt }];
-  console.log(`Full API request for TIRE SELECTION, team ${team}:`, {
-    provider: teamApiConfig.provider,
-    model: teamApiConfig.model,
-    messages: messagesToSend
-  });
   
   // Only check for API key if not using Free Tier
   if (!usingFreeTier) {
@@ -333,13 +318,6 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
   try {
     const { url, headers, body } = prepareApiRequest(teamApiConfig, messagesToSend, apiConfig);
     
-    /*
-    console.log(`API request details for team ${team}:`, {
-      url: url,
-      provider: teamApiConfig.provider,
-      model: teamApiConfig.model
-    });
-*/
 
     // Send API request to selected provider (OpenAI, OpenRouter, or our backend)
     const response = await fetch(url, { method: "POST", headers, body });
@@ -358,7 +336,6 @@ export async function generateAIStrategy(team, startingGrid, apiConfig, setApiEr
     }
 
      const assistantMessage = data.choices[0].message;
-     console.log("Assistant response for team", team, ":", assistantMessage);
 
     let commandsText = assistantMessage.content;
     const codeBlockMatch = commandsText.match(/```([^`]+)```/);
@@ -567,20 +544,6 @@ export async function sendTeamQuery({
   const teamApiConfig = apiConfig[team];
   const usingFreeTier = isFreeTierModel(teamApiConfig.model);
   
-  // Detailed logging of API configuration
-  /*
-  console.log(`Team ${team} RACE STRATEGY API Configuration:`, {
-    provider: teamApiConfig.provider,
-    model: teamApiConfig.model,
-    usingFreeTier: usingFreeTier
-  });
-  */
-  // Logowanie pełnej zawartości wysyłanej do API
-  console.log(`Full API request for RACE STRATEGY, team ${team}:`, {
-    provider: teamApiConfig.provider,
-    model: teamApiConfig.model,
-    messages: messagesToSend
-  });
   
   // Only check for API key if not using Free Tier
   if (!usingFreeTier) {
@@ -610,7 +573,6 @@ export async function sendTeamQuery({
     }
 
     const assistantMessage = data.choices[0].message;
-    console.log("Assistant response for team", team, ":", assistantMessage);
 
     // Zapisujemy w historii konwersacji, zawsze z nowym promptem systemowym
     setConversationHistory(prev => {
