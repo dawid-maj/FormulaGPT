@@ -39,7 +39,7 @@ const RaceInterface = ({
   return (
     <>
       <div className="layout-container">
-        <div>
+        <div className="race-track-column">
           <RaceTrack
             trackPoints={trackPoints}
             cars={cars}

@@ -37,7 +37,10 @@ const RaceTrack = memo(({
   const trackPathD = catmullRom2bezier(trackPoints, true);
 
   return (
-    <div className="border rounded-2xl p-2 inline-block h-full" style={{ position: 'relative' }}>
+    <div
+      className="border rounded-2xl p-2 h-full race-track-container"
+      style={{ position: 'relative' }}
+    >
       <div className="race-nav-bar">
         <button 
           className="race-nav-button"
