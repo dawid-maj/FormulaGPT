@@ -206,12 +206,25 @@ html, body {
 
 .race-track-bg {
   background: linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 50%, #1a1a1a 100%);
-  box-shadow: 
+  box-shadow:
     inset 0 0 100px rgba(0, 0, 0, 0.5),
     0 0 0 1px rgba(255, 255, 255, 0.1),
     0 4px 15px rgba(0, 0, 0, 0.3);
   border-radius: 1rem;
   border: none;
+}
+
+.race-track-column {
+  flex: 1;
+  min-width: 640px;
+  display: flex;
+}
+
+.race-track-container {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 @keyframes pitLaneGlow {
