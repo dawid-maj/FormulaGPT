@@ -37,51 +37,53 @@ const RaceInterface = ({
   teamColors
 }) => {
   return (
-    <div className="layout-container">
-      <div>
-        <RaceTrack
-          trackPoints={trackPoints}
-          cars={cars}
-          pathRef={pathRef}
-          pathLength={pathLength}
-          paused={paused}
-          setPaused={setPaused}
-          setIsModalOpen={(isOpen) => {
-            setIsModalOpen(isOpen);
-            if (!isOpen) {
-              setSelectedNotification(null);
-            }
-          }}
-          notifications={notifications}
-          setSelectedNotification={setSelectedNotification}
-          setNotificationPause={setNotificationPause}
-          wasPaused={paused}
-          availableTeams={availableTeams}
-          selectedNotification={selectedNotification}
-          teamColors={teamColors}
-          apiResponsesPending={apiResponsesPending}
-          aiPendingCommands={aiPendingCommands}
-          isModalOpen={isModalOpen}
-          raceTime={raceTime}
-          highlightedDriver={highlightedDriver}
-          setHighlightedDriver={setHighlightedDriver}
-        />
-      </div>
+    <>
+      <div className="layout-container">
+        <div>
+          <RaceTrack
+            trackPoints={trackPoints}
+            cars={cars}
+            pathRef={pathRef}
+            pathLength={pathLength}
+            paused={paused}
+            setPaused={setPaused}
+            setIsModalOpen={(isOpen) => {
+              setIsModalOpen(isOpen);
+              if (!isOpen) {
+                setSelectedNotification(null);
+              }
+            }}
+            notifications={notifications}
+            setSelectedNotification={setSelectedNotification}
+            setNotificationPause={setNotificationPause}
+            wasPaused={paused}
+            availableTeams={availableTeams}
+            selectedNotification={selectedNotification}
+            teamColors={teamColors}
+            apiResponsesPending={apiResponsesPending}
+            aiPendingCommands={aiPendingCommands}
+            isModalOpen={isModalOpen}
+            raceTime={raceTime}
+            highlightedDriver={highlightedDriver}
+            setHighlightedDriver={setHighlightedDriver}
+          />
+        </div>
 
-      <div className="card p-2">
-        <Scoreboard 
-          cars={cars}
-          pathLength={pathLength}
-          currentLap={cars[0]?.laps || 0}
-          maxLaps={MAX_LAPS}
-          raceTime={raceTime}
-          showResults={showResults}
-          availableTeams={availableTeams}
-          events={events}
-          onExitToMenu={onExitToMenu}
-          highlightedDriver={highlightedDriver}
-          setHighlightedDriver={setHighlightedDriver}
-        />
+        <div className="card p-2">
+          <Scoreboard 
+            cars={cars}
+            pathLength={pathLength}
+            currentLap={cars[0]?.laps || 0}
+            maxLaps={MAX_LAPS}
+            raceTime={raceTime}
+            showResults={showResults}
+            availableTeams={availableTeams}
+            events={events}
+            onExitToMenu={onExitToMenu}
+            highlightedDriver={highlightedDriver}
+            setHighlightedDriver={setHighlightedDriver}
+          />
+        </div>
       </div>
       
       <TeamControls
@@ -93,7 +95,7 @@ const RaceInterface = ({
         highlightedDriver={highlightedDriver}
         setHighlightedDriver={setHighlightedDriver}
       />
-    </div>
+    </>
   );
 };
 
