@@ -113,3 +113,90 @@ export const DRIVERS = Object.entries(teamMapping).flatMap(([team, drivers]) =>
     dotColor: index === 0 ? "white" : null
   }))
 );
+
+// ============================================================================
+// QUALIFYING SESSION CONSTANTS
+// ============================================================================
+
+/** Qualifying session duration in seconds */
+export const QUALIFYING_SESSION_DURATION = 18 * 60; // 18 minutes
+
+/** Number of tire sets per driver in qualifying */
+export const TIRE_SETS_PER_DRIVER = 3;
+
+/** Qualifying lap phases */
+export const QUALIFYING_LAP_PHASES = {
+  OUT: 'OUT',
+  PUSH: 'PUSH', 
+  IN: 'IN'
+};
+
+/** Qualifying driver states */
+export const QUALIFYING_DRIVER_STATES = {
+  PIT: 'Pit',
+  OUT_LAP: 'OUT',
+  PUSH_LAP: 'PUSH',
+  IN_LAP: 'IN'
+};
+
+/**
+ * Attack modes for qualifying push laps
+ * Each mode has different speed bonus and error risk
+ */
+export const ATTACK_MODES = {
+  AGGRESSIVE: {
+    name: 'Aggressive',
+    speedBonus: 1.5,        // Additional speed in px/s
+    errorRisk: 0.08,        // 8% chance of error per lap
+    wearMultiplier: 1.2     // Additional tire wear
+  },
+  SUPER_AGGRESSIVE: {
+    name: 'Super Aggressive', 
+    speedBonus: 3.0,        // Additional speed in px/s
+    errorRisk: 0.15,        // 15% chance of error per lap
+    wearMultiplier: 1.5     // Additional tire wear
+  },
+  MEGA_AGGRESSIVE: {
+    name: 'Mega Aggressive',
+    speedBonus: 4.5,        // Additional speed in px/s  
+    errorRisk: 0.25,        // 25% chance of error per lap
+    wearMultiplier: 2.0     // Additional tire wear
+  }
+};
+
+/**
+ * Qualifying lap type speeds (for OUT and IN laps)
+ */
+export const QUALIFYING_LAP_SPEEDS = {
+  OUT_LAP: 22,    // Slower outlap speed in px/s
+  IN_LAP: 20      // Slower inlap speed in px/s  
+};
+
+/**
+ * Tire wear rates for qualifying lap phases
+ */
+export const QUALIFYING_TIRE_WEAR = {
+  OUT_LAP: 0.02,     // Minimal wear on out lap per second
+  IN_LAP: 0.02,      // Minimal wear on in lap per second
+  PUSH_LAP_BASE: 0.15 // Base wear on push lap per second (before mode multiplier)
+};
+
+/**
+ * Track evolution parameters
+ * Track grip improves over time and with more cars running
+ */
+export const TRACK_EVOLUTION = {
+  INITIAL_GRIP: 0.95,        // Starting grip level (95%)
+  MAX_GRIP: 1.05,            // Maximum grip level (105%) 
+  TIME_FACTOR: 0.00008,      // Grip increase per second
+  TRAFFIC_FACTOR: 0.0001,    // Grip increase per sector completed by any car
+  EVOLUTION_CURVE: 'logarithmic' // Type of evolution curve
+};
+
+/**
+ * Tire set status types
+ */
+export const TIRE_SET_STATUS = {
+  NEW: 'new',
+  USED: 'used'
+};

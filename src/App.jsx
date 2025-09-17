@@ -5,14 +5,18 @@ import { useRaceState } from './hooks/useRaceState';
 import { useApiState } from './hooks/useApiState';
 import { useCommandHandler } from './hooks/useCommandHandler';
 import { useRace } from './hooks/useRace';
+import { useQualifyingState } from './hooks/useQualifyingState';
+import { useQualifyingSession } from './hooks/useQualifyingSession';
 import "@fontsource/titillium-web/400.css";
 import "@fontsource/titillium-web/600.css";
 import "@fontsource/titillium-web/700.css";
 import './App.css';
 
 // Components
+import MainMenu from './components/MainMenu';
 import PreRaceSetup from './components/PreRaceSetup';
 import RaceInterface from './components/RaceInterface';
+import QualifyingInterface from './components/QualifyingInterface';
 import ExitConfirmationModal from './components/ExitConfirmationModal';
 import ApiErrorBanner from './components/ApiErrorBanner';
 
@@ -21,9 +25,15 @@ import { teamColors, availableTeams, defaultTeamControl } from './data/teamMappi
 import { useApiConfig, useTeamApi } from './services/aiService';
 
 const App = () => {
+  // App mode state
+  const [appMode, setAppMode] = useState(null); // null, 'race', 'qualifying'
+  
   // Use custom hooks for state management
   const raceState = useRaceState();
   const apiState = useApiState();
+  
+  // Qualifying state hooks
+  const qualifyingState = useQualifyingState();
   
   // API configuration hook
   const [apiConfig, setApiConfig] = useApiConfig();
@@ -40,12 +50,15 @@ const App = () => {
     apiState.conversationHistoryRef.current = apiState.conversationHistory;
   }, [apiState.conversationHistory]);
   
+  // Only initialize race hooks when in race mode
+  const shouldUseRaceHooks = appMode === 'race';
+  
 
 
-  // Hook wyścigu
-  const { raceTime, cars, setCars, raceFinished, updateRace, applyStartingGrid } = useRace({
+  // Hook wyścigu (only when in race mode)
+  const raceHooks = useRace({
     pathLength: raceState.pathLength,
-    addEvent: (type, details) => raceState.addEvent(type, details, raceTime),
+    addEvent: shouldUseRaceHooks ? (type, details) => raceState.addEvent(type, details, raceTime) : () => {},
     previousRankingRef: raceState.previousRankingRef,
     paused: raceState.paused,
     setPaused: raceState.setPaused,
@@ -53,22 +66,49 @@ const App = () => {
     teamControl,
     initialCars: null
   });
+  
+  const { raceTime, cars, setCars, raceFinished, updateRace, applyStartingGrid } = shouldUseRaceHooks ? raceHooks : {
+    raceTime: 0,
+    cars: [],
+    setCars: () => {},
+    raceFinished: false,
+    updateRace: () => {},
+    applyStartingGrid: () => {}
+  };
 
-  // Command handler hook
+  // Command handler hook (only for race mode)
   const { handleCommandSubmit } = useCommandHandler({
-    setCars,
+    setCars: shouldUseRaceHooks ? setCars : () => {},
     pathLength: raceState.pathLength,
-    addEvent: (type, details) => raceState.addEvent(type, details, raceTime),
+    addEvent: shouldUseRaceHooks ? (type, details) => raceState.addEvent(type, details, raceTime) : () => {},
     raceTimeRef: raceState.raceTimeRef
   });
 
+  // Initialize qualifying session hook when in qualifying mode
+  useQualifyingSession({
+    sessionActive: qualifyingState.sessionActive,
+    sessionTime: qualifyingState.sessionTime,
+    sessionTimeRef: qualifyingState.sessionTimeRef,
+    lastTimestampRef: qualifyingState.lastTimestampRef,
+    paused: qualifyingState.paused,
+    drivers: qualifyingState.drivers,
+    setDrivers: qualifyingState.setDrivers,
+    setSessionTime: qualifyingState.setSessionTime,
+    setSessionFinished: qualifyingState.setSessionFinished,
+    addEvent: qualifyingState.addEvent,
+    trackGrip: qualifyingState.trackGrip,
+    updateTrackEvolution: qualifyingState.updateTrackEvolution,
+    incrementSectorsCompleted: qualifyingState.incrementSectorsCompleted,
+    pathLength: appMode === 'qualifying' ? raceState.pathLength : 0
+  });
 
-  // Pomiar długości toru (po załadowaniu SVG i rozpoczęciu wyścigu)
+
+  // Pomiar długości toru (dla obu trybów)
   useEffect(() => {
-    if (raceState.setupComplete && raceState.pathRef.current) {
+    if ((raceState.setupComplete || qualifyingState.sessionActive) && raceState.pathRef.current) {
       raceState.setPathLength(raceState.pathRef.current.getTotalLength());
     }
-  }, [raceState.setupComplete, raceState.pathRef, raceState.setPathLength]);
+  }, [raceState.setupComplete, qualifyingState.sessionActive, raceState.pathRef, raceState.setPathLength]);
 
   // Główna pętla animacji with pause support
   useEffect(() => {
@@ -183,77 +223,146 @@ const App = () => {
     }
   };
 
-  return (
-    <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
-      <div className="app-container">
-        <div className="p-4" style={{ width: '100%', paddingLeft: 0 }}>
-          {!raceState.setupComplete ? (
-            <PreRaceSetup
-              availableTeams={availableTeams}
-              teamControl={teamControl}
-              setTeamControl={setTeamControl}
-              cars={cars}
-              setCars={setCars}
-              conversationHistory={apiState.conversationHistory}
-              setConversationHistory={apiState.setConversationHistory}
-              apiConfig={apiConfig}
-              setApiConfig={setApiConfig}
-              apiError={apiState.apiError}
-              setApiError={apiState.setApiError}
-              isApiConfigModalOpen={apiState.isApiConfigModalOpen}
-              setIsApiConfigModalOpen={apiState.setIsApiConfigModalOpen}
-              setNotifications={apiState.setNotifications}
-              setAiPendingCommands={apiState.setAiPendingCommands}
-              teamLastEventTimeRef={apiState.teamLastEventTimeRef}
-              pathLength={raceState.pathLength}
-              onRaceStart={handleRaceStart}
-            />
-          ) : (
-            <>
-              <div className="race-nav-bar">
-                <ApiErrorBanner 
-                  error={apiState.apiError} 
-                  onDismiss={() => apiState.setApiError(null)}
-                />
-              </div>
-              
-              <RaceInterface
-                cars={cars}
-                raceTime={raceTime}
-                pathRef={raceState.pathRef}
-                pathLength={raceState.pathLength}
-                events={raceState.events}
-                paused={raceState.paused}
-                setPaused={raceState.setPaused}
-                showResults={raceState.showResults}
-                highlightedDriver={raceState.highlightedDriver}
-                setHighlightedDriver={raceState.setHighlightedDriver}
-                handleCommandSubmit={handleCommandSubmit}
-                onExitToMenu={() => raceState.setShowExitConfirmation(true)}
-                apiResponsesPending={apiState.apiResponsesPending}
-                aiPendingCommands={apiState.aiPendingCommands}
-                notifications={apiState.notifications}
-                selectedNotification={apiState.selectedNotification}
-                setSelectedNotification={apiState.setSelectedNotification}
-                isModalOpen={apiState.isModalOpen}
-                setIsModalOpen={apiState.setIsModalOpen}
-                setNotificationPause={apiState.setNotificationPause}
+  // Handle mode selection from main menu
+  const handleModeSelect = (mode) => {
+    setAppMode(mode);
+    if (mode === 'qualifying') {
+      // Reset qualifying state when starting
+      qualifyingState.startSession();
+    }
+  };
+
+  // Handle exit to menu from any mode
+  const handleExitToMenu = () => {
+    setAppMode(null);
+    raceState.setSetupComplete(false);
+    raceState.setPaused(true);
+    raceState.setShowResults(false);
+    raceState.setEvents([]);
+    raceState.setShowExitConfirmation(false);
+    qualifyingState.endSession();
+  };
+
+  // Main render logic
+  if (!appMode) {
+    // Show main menu
+    return <MainMenu onModeSelect={handleModeSelect} />;
+  }
+
+  if (appMode === 'qualifying') {
+    // Show qualifying interface
+    return (
+      <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
+        <div className="app-container">
+          <QualifyingInterface
+            // Session state
+            sessionActive={qualifyingState.sessionActive}
+            sessionTime={qualifyingState.sessionTime}
+            sessionFinished={qualifyingState.sessionFinished}
+            paused={qualifyingState.paused}
+            setPaused={qualifyingState.setPaused}
+            
+            // Track and drivers
+            pathRef={raceState.pathRef}
+            pathLength={raceState.pathLength}
+            drivers={qualifyingState.drivers}
+            trackGrip={qualifyingState.trackGrip}
+            
+            // Driver management
+            sendDriverToTrack={qualifyingState.sendDriverToTrack}
+            
+            // Results and events
+            qualifyingResults={qualifyingState.qualifyingResults}
+            events={qualifyingState.events}
+            
+            // UI state
+            highlightedDriver={raceState.highlightedDriver}
+            setHighlightedDriver={raceState.setHighlightedDriver}
+            
+            // Session control
+            onExitToMenu={handleExitToMenu}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  if (appMode === 'race') {
+    // Show race interface
+    return (
+      <div style={{ width: '100vw', minHeight: '100vh', display: 'flex', justifyContent: 'center' }}>
+        <div className="app-container">
+          <div className="p-4" style={{ width: '100%', paddingLeft: 0 }}>
+            {!raceState.setupComplete ? (
+              <PreRaceSetup
                 availableTeams={availableTeams}
                 teamControl={teamControl}
-                teamColors={teamColors}
+                setTeamControl={setTeamControl}
+                cars={cars}
+                setCars={setCars}
+                conversationHistory={apiState.conversationHistory}
+                setConversationHistory={apiState.setConversationHistory}
+                apiConfig={apiConfig}
+                setApiConfig={setApiConfig}
+                apiError={apiState.apiError}
+                setApiError={apiState.setApiError}
+                isApiConfigModalOpen={apiState.isApiConfigModalOpen}
+                setIsApiConfigModalOpen={apiState.setIsApiConfigModalOpen}
+                setNotifications={apiState.setNotifications}
+                setAiPendingCommands={apiState.setAiPendingCommands}
+                teamLastEventTimeRef={apiState.teamLastEventTimeRef}
+                pathLength={raceState.pathLength}
+                onRaceStart={handleRaceStart}
               />
-            </>
-          )}
+            ) : (
+              <>
+                <div className="race-nav-bar">
+                  <ApiErrorBanner 
+                    error={apiState.apiError} 
+                    onDismiss={() => apiState.setApiError(null)}
+                  />
+                </div>
+                
+                <RaceInterface
+                  cars={cars}
+                  raceTime={raceTime}
+                  pathRef={raceState.pathRef}
+                  pathLength={raceState.pathLength}
+                  events={raceState.events}
+                  paused={raceState.paused}
+                  setPaused={raceState.setPaused}
+                  showResults={raceState.showResults}
+                  highlightedDriver={raceState.highlightedDriver}
+                  setHighlightedDriver={raceState.setHighlightedDriver}
+                  handleCommandSubmit={handleCommandSubmit}
+                  onExitToMenu={handleExitToMenu}
+                  apiResponsesPending={apiState.apiResponsesPending}
+                  aiPendingCommands={apiState.aiPendingCommands}
+                  notifications={apiState.notifications}
+                  selectedNotification={apiState.selectedNotification}
+                  setSelectedNotification={apiState.setSelectedNotification}
+                  isModalOpen={apiState.isModalOpen}
+                  setIsModalOpen={apiState.setIsModalOpen}
+                  setNotificationPause={apiState.setNotificationPause}
+                  availableTeams={availableTeams}
+                  teamControl={teamControl}
+                  teamColors={teamColors}
+                />
+              </>
+            )}
+          </div>
+          
+          <ExitConfirmationModal
+            isOpen={raceState.showExitConfirmation}
+            onCancel={() => raceState.setShowExitConfirmation(false)}
+            onConfirm={handleExitToMenu}
+          />
         </div>
-        
-        <ExitConfirmationModal
-          isOpen={raceState.showExitConfirmation}
-          onCancel={() => raceState.setShowExitConfirmation(false)}
-          onConfirm={raceState.handleExitToMenu}
-        />
       </div>
-    </div>
-  );
+    );
+  }
+
+  return null;
 };
 
 export default App;
